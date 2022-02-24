@@ -1,0 +1,6 @@
+{
+  "pressio:compressor": "roibin",
+  "roibin:background": "binning",
+  "roibin:roi": "fpzip",
+  "binning:compressor": "fpzip"
+}
