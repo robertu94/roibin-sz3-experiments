@@ -15,6 +15,16 @@ hid_t check_hdf5(herr_t err) {
   return err;
 }
 
+std::vector<hsize_t> space_get_dims(hid_t space) {
+  int ndims = H5Sget_simple_extent_ndims(space);
+  if(ndims < 0) {
+    throw std::runtime_error("failed to get dims");
+  }
+  std::vector<hsize_t> size(ndims);
+  H5Sget_simple_extent_dims(space, size.data(), nullptr);
+  return size;
+}
+
 const std::string usage = R"(roibin_test
 experimental code to test roibin_sz3
 
@@ -114,16 +124,15 @@ int main(int argc, char *argv[])
       hid_t peaks_file_dspace = check_hdf5(H5Dget_space(peaks_dset));
       cleanup cleanup_peaks_file_dspace([&]{H5Sclose(peaks_file_dspace);});
 
-      //allocate working memory for each worker
-      std::vector<size_t> data_dims;
-      std::vector<size_t> peak_dims;
-      std::vector<size_t> posy_dims;
-      std::vector<size_t> posx_dims;
-      auto data_mem = pressio_data::owning(pressio_float_dtype, data_dims);
-      auto peaks_mem = pressio_data::owning(pressio_float_dtype, peak_dims);
-      auto posy_mem = pressio_data::owning(pressio_float_dtype, posx_dims);
-      auto posx_mem = pressio_data::owning(pressio_float_dtype, posy_dims);
+      hid_t numEvents_h = check_hdf5(H5Aopen_by_name(data_dset, "/entry_1/result_1/nPeaks", "numEvents", H5P_DEFAULT, H5P_DEFAULT));
+      cleanup cleanup_numEvents([&]{ H5Aclose(numEvents_h); });
+      int64_t numEvents = 0;
+      check_hdf5(H5Aread(numEvents_h, H5T_NATIVE_INT64, &numEvents));
 
+      hid_t maxPeaks_h = check_hdf5(H5Aopen_by_name(data_dset, "/entry_1/result_1/nPeaks", "maxPeaks", H5P_DEFAULT, H5P_DEFAULT));
+      cleanup cleanup_maxPeaks([&]{ H5Aclose(maxPeaks_h); });
+      int64_t maxPeaks = 0;
+      check_hdf5(H5Aread(numEvents_h, H5T_NATIVE_INT64, &maxPeaks));
 
 
     } catch(std::exception const& ex) {
