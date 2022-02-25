@@ -1,0 +1,24 @@
+# This is a Spack Environment file.
+#
+# It describes a set of packages to be installed, along with
+# configuration settings.
+spack:
+  # add package specs to the `specs` list
+  specs: [libpressio-tools ^ libpressio+fpzip+hdf5+mgard+sz+zfp+json ^mgard@robertu94+cuda]
+  view: true
+  repos:
+  - ./robertu94_packages
+  compilers:
+  - compiler:
+      paths:
+        cc: /blues/gpfs/software/centos7/spack-latest/opt/spack/linux-centos7-x86_64/gcc-6.5.0/gcc-9.2.0-pkmzczt/bin/gcc
+        cxx: /blues/gpfs/software/centos7/spack-latest/opt/spack/linux-centos7-x86_64/gcc-6.5.0/gcc-9.2.0-pkmzczt/bin/g++
+        f77: /blues/gpfs/software/centos7/spack-latest/opt/spack/linux-centos7-x86_64/gcc-6.5.0/gcc-9.2.0-pkmzczt/bin/gfortran
+        fc: /blues/gpfs/software/centos7/spack-latest/opt/spack/linux-centos7-x86_64/gcc-6.5.0/gcc-9.2.0-pkmzczt/bin/gfortran
+      operating_system: centos7
+      target: x86_64
+      modules: [gcc/9.2.0-pkmzczt]
+      environment: {}
+      extra_rpaths: []
+      flags: {}
+      spec: gcc@9.2.0

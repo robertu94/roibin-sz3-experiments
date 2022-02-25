@@ -41,9 +41,9 @@ operator<<(std::basic_ostream<CharT, Traits>& out, printer<V>const& p) {
   return out;
 }
 
-hid_t check_hdf5(herr_t err) {
+hid_t check_hdf5(hid_t err) {
   if(err < 0) {
-    throw std::runtime_error("");
+    throw std::runtime_error("failed operation");
   }
   return err;
 }
@@ -95,11 +95,6 @@ cmdline_args parse_args(int argc, char* argv[]) {
   return args;
 }
 
-const char* data_loc="/entry_1/data_1/data";
-const char* peakx_loc="/entry_1/result_1/peakXPosRaw";
-const char* peaky_loc="/entry_1/result_1/peakYPosRaw";
-const char* npeak_loc="/entry_1/result_1/nPeaks";
-
 struct h5dset {
   hid_t space, dset;
   cleanup cleanup_space, cleanup_dset;
@@ -120,13 +115,13 @@ struct h5dset {
 };
 
 h5dset open_dset(hid_t cxi, const char* loc) {
-    hid_t data_dset = check_hdf5(H5Dopen(cxi, data_loc, H5P_DEFAULT));
+    hid_t data_dset = check_hdf5(H5Dopen(cxi, loc, H5P_DEFAULT));
     cleanup cleanup_data_dset([=]{H5Dclose(data_dset);});
     hid_t data_file_dspace = check_hdf5(H5Dget_space(data_dset));
     cleanup cleanup_data_file_dspace([=]{H5Sclose(data_file_dspace);});
     return h5dset {
-      data_dset,
       data_file_dspace,
+      data_dset,
       std::move(cleanup_data_dset),
       std::move(cleanup_data_file_dspace)
     };
@@ -203,6 +198,11 @@ int main(int argc, char *argv[])
       hid_t cxi = check_hdf5(H5Fopen(args.cxi_filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT));
       cleanup cleanup_cxi([&]{H5Fclose(cxi);});
 
+      const char* data_loc="/entry_1/data_1/data";
+      const char* peakx_loc="/entry_1/result_1/peakXPosRaw";
+      const char* peaky_loc="/entry_1/result_1/peakYPosRaw";
+      const char* npeak_loc="/entry_1/result_1/nPeaks";
+
       auto data = open_dset(cxi, data_loc);
       auto posx = open_dset(cxi, peakx_loc);
       auto posy = open_dset(cxi, peaky_loc);
@@ -251,11 +251,15 @@ int main(int argc, char *argv[])
         check_hdf5(H5Pset_deflate(peak_dcpl, 6));
 
 
+        std::clog << "copy data" << std::endl;
         copy<float>(data, work_data_dims_hsize, data_dcpl, output_file, data_loc);
-        copy<float>(posx, work_peaksx_dims_hsize, H5P_DEFAULT, output_file, peakx_loc);
-        copy<float>(posy, work_peaksy_dims_hsize, H5P_DEFAULT, output_file, peaky_loc);
-        copy<float>(npeaks, work_npeaks_dims_hsize, H5P_DEFAULT, output_file, npeak_loc);
-        
+        std::clog << "copy peakx" << std::endl;
+        copy<double>(posx, work_peaksx_dims_hsize, peak_dcpl, output_file, peakx_loc);
+        std::clog << "copy peaky" << std::endl;
+        copy<double>(posy, work_peaksy_dims_hsize, peak_dcpl, output_file, peaky_loc);
+        std::clog << "copy npeak" << std::endl;
+        copy<int64_t>(npeaks, work_npeaks_dims_hsize, H5P_DEFAULT, output_file, npeak_loc);
+        std::clog << "done" << std::endl;
       }
 
 

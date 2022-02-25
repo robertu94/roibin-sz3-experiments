@@ -3,6 +3,7 @@
 #include <libpressio_ext/cpp/json.h>
 #include <nlohmann/json.hpp>
 #include <iostream>
+#include <unistd.h>
 #include <fstream>
 #include "roibin_test_version.h"
 
