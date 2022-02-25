@@ -8,45 +8,9 @@
 #include <hdf5.h>
 #include "cleanup.h"
 #include "roibin_test_version.h"
+#include "debug_helpers.h"
+#include "hdf5_helpers.h"
 
-template <class T>
-struct printer {
-  T const& iterable;
-  decltype(std::begin(iterable)) begin() const {
-    return std::begin(iterable);
-  }
-  decltype(std::end(iterable)) end() const {
-    return std::end(iterable);
-  }
-};
-template <class T>
-printer(T) -> printer<T>;
-
-template <class CharT, class Traits, class V>
-std::basic_ostream<CharT, Traits>&
-operator<<(std::basic_ostream<CharT, Traits>& out, printer<V>const& p) {
-  auto it = std::begin(p);
-  auto end = std::end(p);
-
-  out << '{';
-  if (it != end) {
-    out << *it;
-    ++it;
-    while(it != end) {
-      out << ", " << *it;
-      it++;
-    }
-  }
-  out << '}';
-  return out;
-}
-
-hid_t check_hdf5(hid_t err) {
-  if(err < 0) {
-    throw std::runtime_error("failed operation");
-  }
-  return err;
-}
 
 const std::string usage = R"(roibin_test
 experimental code to test roibin_sz3
@@ -95,101 +59,6 @@ cmdline_args parse_args(int argc, char* argv[]) {
   return args;
 }
 
-struct h5dset {
-  hid_t space, dset;
-  cleanup cleanup_space, cleanup_dset;
-
-  std::vector<hsize_t> get_dims_hsize() const {
-    int ndims = H5Sget_simple_extent_ndims(space);
-    if(ndims < 0) {
-      throw std::runtime_error("failed to get dims");
-    }
-    std::vector<hsize_t> size(ndims);
-    H5Sget_simple_extent_dims(space, size.data(), nullptr);
-    return size;
-  }
-  std::vector<size_t> get_pressio_dims() const {
-    auto hdims = get_dims_hsize();
-    return std::vector<size_t>(hdims.rbegin(), hdims.rend());
-  }
-};
-
-h5dset open_dset(hid_t cxi, const char* loc) {
-    hid_t data_dset = check_hdf5(H5Dopen(cxi, loc, H5P_DEFAULT));
-    cleanup cleanup_data_dset([=]{H5Dclose(data_dset);});
-    hid_t data_file_dspace = check_hdf5(H5Dget_space(data_dset));
-    cleanup cleanup_data_file_dspace([=]{H5Sclose(data_file_dspace);});
-    return h5dset {
-      data_file_dspace,
-      data_dset,
-      std::move(cleanup_data_dset),
-      std::move(cleanup_data_file_dspace)
-    };
-}
-
-
-template <class T>
-hid_t get_hdf5_native_type() {
-  if(std::is_same<T,int64_t>::value) {
-    return H5T_NATIVE_INT64;
-  } else if(std::is_same<T,uint64_t>::value) {
-    return H5T_NATIVE_UINT64;
-  } else if(std::is_same<T,float>::value) {
-    return H5T_NATIVE_FLOAT;
-  } else if(std::is_same<T,double>::value) {
-    return H5T_NATIVE_DOUBLE;
-  } else {
-    throw std::runtime_error("unsupported type");
-  }
-}
-
-template <class T>
-T get_attribute(hid_t file, const char* dset_loc, const char* attrib_loc) {
-      hid_t attr_hid = check_hdf5(H5Aopen_by_name(file, dset_loc, attrib_loc, H5P_DEFAULT, H5P_DEFAULT));
-      cleanup cleanup_numEvents([=]{ H5Aclose(attr_hid); });
-      T attr = 0;
-      check_hdf5(H5Aread(attr_hid, get_hdf5_native_type<T>(), &attr));
-      return attr;
-}
-
-template <class T>
-void copy(
-        h5dset const& data,
-        std::vector<hsize_t> const& count,
-        hid_t dcpl,
-        hid_t output_file,
-        const char* dset_name
-      ) {
-        {
-          hid_t output_data_dataspace = check_hdf5(H5Screate_simple(count.size(), count.data() , nullptr));
-          cleanup output_space_cleanup([&]{H5Sclose(output_data_dataspace);});
-
-
-          std::vector<hsize_t> start(data.get_dims_hsize().size(), 0);
-          hid_t file_space = check_hdf5(H5Scopy(data.space));
-          cleanup cleanup_filespace([=]{H5Sclose(file_space);});
-          H5Sselect_hyperslab(
-              file_space, H5S_SELECT_SET,
-              start.data(),
-              /*stride*/nullptr,
-              count.data(),
-              /*block*/nullptr
-              );
-
-          size_t num_elements = std::accumulate(count.begin(), count.end(), hsize_t{1}, std::multiplies<>{});
-          std::vector<float> work_data(num_elements);
-          check_hdf5(H5Dread(data.dset, H5T_NATIVE_FLOAT, H5S_ALL, file_space, /*xfer*/H5P_DEFAULT, work_data.data()));
-
-          hid_t lcpl = check_hdf5(H5Pcreate(H5P_LINK_CREATE));
-          cleanup cleanup_lcpl([&]{H5Pclose(lcpl);});
-          check_hdf5(H5Pset_create_intermediate_group(lcpl, 1));
-
-          hid_t output_data_dset = check_hdf5(H5Dcreate(output_file, dset_name, get_hdf5_native_type<T>(), output_data_dataspace, lcpl, dcpl, /*dapl*/H5P_DEFAULT));
-          check_hdf5(H5Dwrite(output_data_dset, get_hdf5_native_type<T>(), H5S_ALL, H5S_ALL, H5P_DEFAULT, work_data.data()));
-        }
-
-}
-
 int main(int argc, char *argv[])
 {
     try{
@@ -215,11 +84,21 @@ int main(int argc, char *argv[])
       //peakYPos -- numEvents x maxPeaks (double)
       //nPeaks -- numEvents (int64_t)
       //data -- numEvents x column x row (float)
+      if(numEvents < args.chunk_size) {
+        throw std::runtime_error("too few events");
+      }
 
       auto peaksx_dims_hsize = posx.get_dims_hsize();
       auto peaksy_dims_hsize = posy.get_dims_hsize();
       auto npeaks_dims_hsize = npeaks.get_dims_hsize();
       auto data_dims_hsize =  data.get_dims_hsize();
+      std::cout << 
+        "peaks x " << printer{peaksx_dims_hsize} <<
+        "peaks y " << printer{peaksy_dims_hsize} <<
+        "npeaks " << printer{npeaks_dims_hsize} <<
+        "data " << printer{data_dims_hsize} <<
+        std::endl;
+
 
       auto work_peaksx_dims_hsize = std::vector<hsize_t>{args.chunk_size, maxPeaks};
       auto work_peaksy_dims_hsize = std::vector<hsize_t>{static_cast<hsize_t>(args.chunk_size), maxPeaks};
@@ -228,13 +107,6 @@ int main(int argc, char *argv[])
 
       auto chunk_data_hsize = std::vector<hsize_t>{static_cast<hsize_t>(1), data_dims_hsize[1], data_dims_hsize[2]};
       auto chunk_peak_hsize = std::vector<hsize_t>{static_cast<hsize_t>(1), maxPeaks};
-
-      std::cout << 
-        "peaks x " << printer{peaksx_dims_hsize} <<
-        "peaks y " << printer{peaksy_dims_hsize} <<
-        "npeaks " << printer{npeaks_dims_hsize} <<
-        "data " << printer{data_dims_hsize} <<
-        std::endl;
 
       {
         hid_t output_file = check_hdf5(H5Fcreate(args.outfile.c_str(), 0, /*create*/H5P_DEFAULT, /*access*/H5P_DEFAULT));

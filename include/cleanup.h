@@ -1,3 +1,5 @@
+#ifndef CLEANUP_H_9SVFEYZM
+#define CLEANUP_H_9SVFEYZM
 #include <functional>
 #include <optional>
 #include <utility>
@@ -29,3 +31,4 @@ class cleanup {
   std::function<void()> finalizer;
 };
 
+#endif /* end of include guard: CLEANUP_H_9SVFEYZM */

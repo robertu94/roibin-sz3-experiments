@@ -1,29 +1,16 @@
 #include <iostream>
 #include <string>
+#include <fstream>
 #include <unistd.h>
 #include <mpi.h>
 #include <hdf5.h>
 #include <libpressio_ext/cpp/pressio.h>
+#include <libpressio_ext/cpp/printers.h>
 #include <libpressio_ext/cpp/json.h>
+#include <nlohmann/json.hpp>
 #include "cleanup.h"
 #include "roibin_test_version.h"
-
-hid_t check_hdf5(herr_t err) {
-  if(err < 0) {
-    throw std::runtime_error("");
-  }
-  return err;
-}
-
-std::vector<hsize_t> space_get_dims(hid_t space) {
-  int ndims = H5Sget_simple_extent_ndims(space);
-  if(ndims < 0) {
-    throw std::runtime_error("failed to get dims");
-  }
-  std::vector<hsize_t> size(ndims);
-  H5Sget_simple_extent_dims(space, size.data(), nullptr);
-  return size;
-}
+#include "hdf5_helpers.h"
 
 const std::string usage = R"(roibin_test
 experimental code to test roibin_sz3
@@ -36,6 +23,7 @@ experimental code to test roibin_sz3
 
 struct cmdline_args {
   std::string cxi_filename = "cxic0415_0101.cxi";
+  std::string pressio_config_file = "share/blosc.json";
   size_t chunk_size = 1;
 };
 
@@ -56,6 +44,9 @@ cmdline_args parse_args(int argc, char* argv[]) {
         break;
       case 'f':
         args.cxi_filename = optarg;
+        break;
+      case 'p':
+        args.pressio_config_file = optarg;
         break;
       case 'h':
         std::cout << usage << std::endl;;
@@ -104,35 +95,124 @@ int main(int argc, char *argv[])
       hid_t cxi = check_hdf5(H5Fopen(args.cxi_filename.c_str(), H5F_ACC_RDONLY, fapl));
       cleanup cleanup_cxi([&]{H5Fclose(cxi);});
 
-      hid_t data_dset = check_hdf5(H5Dopen(cxi, "/entry_1/data", H5P_DEFAULT));
-      cleanup cleanup_data_dset([&]{H5Dclose(data_dset);});
-      hid_t data_file_dspace = check_hdf5(H5Dget_space(data_dset));
-      cleanup cleanup_data_file_dspace([&]{H5Sclose(data_file_dspace);});
+      const char* data_loc="/entry_1/data_1/data";
+      const char* peakx_loc="/entry_1/result_1/peakXPosRaw";
+      const char* peaky_loc="/entry_1/result_1/peakYPosRaw";
+      const char* npeak_loc="/entry_1/result_1/nPeaks";
 
-      hid_t posx_dset = check_hdf5(H5Dopen(cxi, "/entry_1/result_1/peakXPosRaw", H5P_DEFAULT));
-      cleanup cleanup_posx_dset([&]{H5Dclose(data_dset);});
-      hid_t posx_file_dspace = check_hdf5(H5Dget_space(posx_dset));
-      cleanup cleanup_posx_file_dspace([&]{H5Sclose(posx_file_dspace);});
+      auto data = open_dset(cxi, data_loc);
+      auto posx = open_dset(cxi, peakx_loc);
+      auto posy = open_dset(cxi, peaky_loc);
+      auto npeaks = open_dset(cxi, npeak_loc);
 
-      hid_t posy_dset = check_hdf5(H5Dopen(cxi, "/entry_1/result_1/peakYPosRaw", H5P_DEFAULT));
-      cleanup cleanup_posy_dset([&]{H5Dclose(posy_dset);});
-      hid_t posy_file_dspace = check_hdf5(H5Dget_space(posy_dset));
-      cleanup cleanup_posy_file_dspace([&]{H5Sclose(posy_file_dspace);});
+      //hdf5 and libpressio use opposite data ordering
+      size_t num_events = data.get_dims_hsize().front();
+      size_t max_peaks = posx.get_dims_hsize().front();
+      size_t total_size = 0;
+      size_t total_compressed_size = 0;
+      pressio_data peaks_data = pressio_data::owning(
+          pressio_int64_dtype, {args.chunk_size}
+          );
+      pressio_data posx_data = pressio_data::owning(
+          pressio_double_dtype, {max_peaks, args.chunk_size}
+          );
+      pressio_data posy_data = pressio_data::owning(
+          pressio_double_dtype, {max_peaks, args.chunk_size}
+          );
 
-      hid_t peaks_dset = check_hdf5(H5Dopen(cxi, "/entry_1/result_1/nPeaks", H5P_DEFAULT));
-      cleanup cleanup_peaks_dset([&]{H5Dclose(data_dset);});
-      hid_t peaks_file_dspace = check_hdf5(H5Dget_space(peaks_dset));
-      cleanup cleanup_peaks_file_dspace([&]{H5Sclose(peaks_file_dspace);});
+      auto data_lp_size = data.get_pressio_dims();
+      auto data_lp_worksize = data_lp_size;
+      data_lp_size.back() = args.chunk_size;
+      pressio_data data_data = pressio_data::owning(
+          pressio_float_dtype, data_lp_worksize
+          );
 
-      hid_t numEvents_h = check_hdf5(H5Aopen_by_name(data_dset, "/entry_1/result_1/nPeaks", "numEvents", H5P_DEFAULT, H5P_DEFAULT));
-      cleanup cleanup_numEvents([&]{ H5Aclose(numEvents_h); });
-      int64_t numEvents = 0;
-      check_hdf5(H5Aread(numEvents_h, H5T_NATIVE_INT64, &numEvents));
+      //prepare compressor
+      std::ifstream ifile(args.pressio_config_file);
+      nlohmann::json j;
+      ifile >> j;
+      pressio_options options_from_file(j);
+      pressio library;
+      pressio_compressor comp = library.get_compressor("pressio");
+      comp->set_name("pressio");
+      comp->set_options(options_from_file);
+      comp->set_options({
+          {"pressio:metric", "composite"},
+          {"composite:plugins", std::vector<std::string>{"size", "time"}}
+      });
 
-      hid_t maxPeaks_h = check_hdf5(H5Aopen_by_name(data_dset, "/entry_1/result_1/nPeaks", "maxPeaks", H5P_DEFAULT, H5P_DEFAULT));
-      cleanup cleanup_maxPeaks([&]{ H5Aclose(maxPeaks_h); });
-      int64_t maxPeaks = 0;
-      check_hdf5(H5Aread(numEvents_h, H5T_NATIVE_INT64, &maxPeaks));
+      if(work_rank == 0) {
+        std::cout << comp->get_options() << std::endl;
+      }
+
+      for (size_t i = 0; i < num_events; i += (args.chunk_size*work_size)) {
+          size_t id = i + work_rank * args.chunk_size;
+          size_t work_items;
+          if(id > num_events) {
+            work_items = 0;
+          } else if(id+args.chunk_size > num_events) {
+            work_items = num_events - id;
+          } else {
+            work_items = args.chunk_size;
+          }
+
+          //read npeaks
+          std::vector<hsize_t> npeaks_start{id};
+          std::vector<hsize_t> npeaks_count{work_items};
+          read(npeaks, npeaks_start, npeaks_count, peaks_data);
+          //read posx
+          std::vector<hsize_t> posx_start{id, 0};
+          std::vector<hsize_t> posx_count{work_items, max_peaks};
+          read(posx, npeaks_start, npeaks_count, posx_data);
+          //read posy
+          std::vector<hsize_t> posy_start{id, 0};
+          std::vector<hsize_t> posy_count{work_items, max_peaks};
+          read(posy, npeaks_start, npeaks_count, posy_data);
+
+          //compute centers
+          size_t peaks_in_work = 0;
+          auto npeaks_ptr = static_cast<const int64_t*>(peaks_data.data());
+          std::vector<size_t> peaks_to_events, to_start_of_event;
+          peaks_to_events.reserve(max_peaks * work_items);
+          to_start_of_event.reserve(work_items* work_items);
+          for (size_t i = 0; i < work_items; ++i) {
+            peaks_in_work += npeaks_ptr[i];
+            for (int64_t j = 0; j < npeaks_ptr[i]; ++j) {
+              peaks_to_events.push_back(i);
+              to_start_of_event.push_back(j);
+            }
+          }
+          pressio_data centers = pressio_data::owning(pressio_uint64_dtype,
+              {3, peaks_in_work});
+          auto posx_ptr = static_cast<double const*>(posx_data.data());
+          auto posy_ptr = static_cast<double const*>(posy_data.data());
+          auto centers_ptr = static_cast<uint64_t*>(posy_data.data());
+          for (size_t i = 0; i < peaks_in_work; ++i) {
+            centers_ptr[i*3] = static_cast<size_t>(posx_ptr[peaks_to_events[i] * max_peaks + to_start_of_event[i]]);
+            centers_ptr[i*3+1] =  static_cast<size_t>(posy_ptr[peaks_to_events[i] * max_peaks + to_start_of_event[i]]);
+            centers_ptr[i*3+2] =  peaks_to_events[i];
+          }
+
+          //read data
+          std::vector<hsize_t> data_start{id, 0};
+          std::vector<hsize_t> data_count{work_items, max_peaks};
+          read(data, data_start, data_count, data_data);
+
+          //trigger compression/decompression
+          comp->set_options({
+              {"roibin:centers", std::move(centers)}
+          });
+          pressio_data data_comp = pressio_data::empty(pressio_byte_dtype, {});
+          comp->compress(&data_data, &data_comp);
+          
+          //save metrics worth saving
+          total_compressed_size += 1;
+          total_size += 1;
+      }
+      //compute global compression ratio
+      if(work_rank == 0) {
+        std::cout << "global_cr=" << total_size/static_cast<double>(total_compressed_size)  << std::endl;
+      }
 
 
     } catch(std::exception const& ex) {
