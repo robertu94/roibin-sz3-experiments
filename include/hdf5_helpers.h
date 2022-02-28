@@ -102,8 +102,8 @@ void copy(
               );
 
           size_t num_elements = std::accumulate(count.begin(), count.end(), hsize_t{1}, std::multiplies<>{});
-          std::vector<float> work_data(num_elements);
-          check_hdf5(H5Dread(data.dset, H5T_NATIVE_FLOAT, H5S_ALL, file_space, /*xfer*/H5P_DEFAULT, work_data.data()));
+          std::vector<T> work_data(num_elements);
+          check_hdf5(H5Dread(data.dset, get_hdf5_native_type<T>(), H5S_ALL, file_space, /*xfer*/H5P_DEFAULT, work_data.data()));
 
           hid_t lcpl = check_hdf5(H5Pcreate(H5P_LINK_CREATE));
           cleanup cleanup_lcpl([&]{H5Pclose(lcpl);});

@@ -17,6 +17,7 @@ experimental code to test roibin_sz3
 
 -c chunk_size
 -f cxi_filename
+-p presiso config file
 -h print this message
 -v print the version information
 )";
@@ -34,7 +35,7 @@ cmdline_args parse_args(int argc, char* argv[]) {
 
 
   int opt;
-  while((opt = getopt(argc, argv, "c:hvf:")) != -1) {
+  while((opt = getopt(argc, argv, "c:hvf:p:")) != -1) {
     switch (opt) {
       case 'c':
         args.chunk_size = atoi(optarg);
@@ -66,6 +67,8 @@ int main(int argc, char *argv[])
 {
   int world_rank, world_size, per_node_rank;
   MPI_Init(&argc, &argv);
+  cleanup cleanup_init([&]{MPI_Finalize();});
+
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 
@@ -107,7 +110,7 @@ int main(int argc, char *argv[])
 
       //hdf5 and libpressio use opposite data ordering
       size_t num_events = data.get_dims_hsize().front();
-      size_t max_peaks = posx.get_dims_hsize().front();
+      size_t max_peaks = posx.get_dims_hsize().back();
       size_t total_size = 0;
       size_t total_compressed_size = 0;
       pressio_data peaks_data = pressio_data::owning(
@@ -159,15 +162,21 @@ int main(int argc, char *argv[])
           //read npeaks
           std::vector<hsize_t> npeaks_start{id};
           std::vector<hsize_t> npeaks_count{work_items};
+          std::vector<size_t> peak_data_lp(npeaks_count.begin(), npeaks_count.end());
+          peaks_data.set_dimensions(std::move(peak_data_lp));
           read(npeaks, npeaks_start, npeaks_count, peaks_data);
           //read posx
           std::vector<hsize_t> posx_start{id, 0};
           std::vector<hsize_t> posx_count{work_items, max_peaks};
-          read(posx, npeaks_start, npeaks_count, posx_data);
+          std::vector<size_t> posx_data_lp(posx_count.begin(), posx_count.end());
+          posx_data.set_dimensions(std::move(posx_data_lp));
+          read(posx, posx_start, posx_count, posx_data);
           //read posy
           std::vector<hsize_t> posy_start{id, 0};
           std::vector<hsize_t> posy_count{work_items, max_peaks};
-          read(posy, npeaks_start, npeaks_count, posy_data);
+          std::vector<size_t> posy_data_lp(posy_count.begin(), posy_count.end());
+          posx_data.set_dimensions(std::move(posy_data_lp));
+          read(posy, posy_start, posy_count, posy_data);
 
           //compute centers
           size_t peaks_in_work = 0;
@@ -220,6 +229,5 @@ int main(int argc, char *argv[])
     }
   }
 
-  MPI_Finalize();
   return 0;
 }

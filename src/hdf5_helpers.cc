@@ -60,7 +60,7 @@ void read(
   H5Pset_dxpl_mpio(xfer, H5FD_MPIO_COLLECTIVE);
   cleanup cleanup_xfer([=]{ H5Pclose(xfer); });
   check_hdf5(H5Dread(
-      dset.dset, data.dtype(),
+      dset.dset, pressio_to_hdf5_native_type(data.dtype()),
       H5S_ALL, file_space, xfer, data.data()
       ));
   std::vector<size_t> lp_dims(count.rbegin(), count.rend());
