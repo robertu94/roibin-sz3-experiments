@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <chrono>
 #include <fstream>
 #include <unistd.h>
 #include <mpi.h>
@@ -26,6 +27,7 @@ struct cmdline_args {
   std::string cxi_filename = "cxic0415_0101.cxi";
   std::string pressio_config_file = "share/blosc.json";
   size_t chunk_size = 1;
+  int32_t workers_per_node = 1;
 };
 
 using namespace std::string_literals;
@@ -35,7 +37,7 @@ cmdline_args parse_args(int argc, char* argv[]) {
 
 
   int opt;
-  while((opt = getopt(argc, argv, "c:hvf:p:")) != -1) {
+  while((opt = getopt(argc, argv, "c:hvf:p:n:")) != -1) {
     switch (opt) {
       case 'c':
         args.chunk_size = atoi(optarg);
@@ -53,6 +55,13 @@ cmdline_args parse_args(int argc, char* argv[]) {
         std::cout << usage << std::endl;;
         exit(0);
         break;
+      case 'n':
+        args.workers_per_node = atoi(optarg);
+        if(args.workers_per_node < 1) {
+          throw std::runtime_error("invalid workers per_node"s + optarg);
+        }
+        break;
+
       case 'v':
       std::cout << ROIBIN_TEST_VERSION << std::endl;
         exit(0);
@@ -69,6 +78,8 @@ int main(int argc, char *argv[])
   MPI_Init(&argc, &argv);
   cleanup cleanup_init([&]{MPI_Finalize();});
 
+  auto args = parse_args(argc, argv);
+
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 
@@ -81,15 +92,14 @@ int main(int argc, char *argv[])
   //create communicators with 1 rank per node
   int work_rank, work_size;
   MPI_Comm work_comm;
-  MPI_Comm_split(MPI_COMM_WORLD, per_node_rank, world_rank, &work_comm);
+  MPI_Comm_split(MPI_COMM_WORLD, per_node_rank < args.workers_per_node, world_rank, &work_comm);
   cleanup cleanup_work_comm([&]{MPI_Comm_free(&work_comm);});
   MPI_Comm_rank(work_comm, &work_rank);
   MPI_Comm_size(work_comm, &work_size);
 
 
-  if(per_node_rank == 0) {
+  if(per_node_rank < args.workers_per_node) {
     try{
-      auto args = parse_args(argc, argv);
 
       hid_t fapl = check_hdf5(H5Pcreate(H5P_FILE_ACCESS)); 
       cleanup cleanup_fapl([&]{ H5Pclose(fapl); });
@@ -111,8 +121,8 @@ int main(int argc, char *argv[])
       //hdf5 and libpressio use opposite data ordering
       size_t num_events = data.get_dims_hsize().front();
       size_t max_peaks = posx.get_dims_hsize().back();
-      size_t total_size = 0;
-      size_t total_compressed_size = 0;
+      uint64_t total_size = 0;
+      uint64_t total_compressed_size = 0;
       pressio_data peaks_data = pressio_data::owning(
           pressio_int64_dtype, {args.chunk_size}
           );
@@ -125,7 +135,7 @@ int main(int argc, char *argv[])
 
       auto data_lp_size = data.get_pressio_dims();
       auto data_lp_worksize = data_lp_size;
-      data_lp_size.back() = args.chunk_size;
+      data_lp_worksize.back() = args.chunk_size;
       pressio_data data_data = pressio_data::owning(
           pressio_float_dtype, data_lp_worksize
           );
@@ -145,9 +155,11 @@ int main(int argc, char *argv[])
       });
 
       if(work_rank == 0) {
-        std::cout << comp->get_options() << std::endl;
+        std::clog << comp->get_options() << std::endl;
       }
 
+      try{
+      auto begin = std::chrono::steady_clock::now();
       for (size_t i = 0; i < num_events; i += (args.chunk_size*work_size)) {
           size_t id = i + work_rank * args.chunk_size;
           size_t work_items;
@@ -158,25 +170,35 @@ int main(int argc, char *argv[])
           } else {
             work_items = args.chunk_size;
           }
+          if(work_rank == 0) {
+            std::clog << "processing " << i << " " << i+(args.chunk_size*work_size) << std::endl;
+          }
 
           //read npeaks
           std::vector<hsize_t> npeaks_start{id};
           std::vector<hsize_t> npeaks_count{work_items};
           std::vector<size_t> peak_data_lp(npeaks_count.begin(), npeaks_count.end());
+          if(work_items) {
           peaks_data.set_dimensions(std::move(peak_data_lp));
-          read(npeaks, npeaks_start, npeaks_count, peaks_data);
+          }
+          read(npeaks, npeaks_start, npeaks_count, peaks_data, work_items);
           //read posx
           std::vector<hsize_t> posx_start{id, 0};
           std::vector<hsize_t> posx_count{work_items, max_peaks};
           std::vector<size_t> posx_data_lp(posx_count.begin(), posx_count.end());
+          if(work_items) {
           posx_data.set_dimensions(std::move(posx_data_lp));
-          read(posx, posx_start, posx_count, posx_data);
+          }
+          read(posx, posx_start, posx_count, posx_data, work_items);
           //read posy
           std::vector<hsize_t> posy_start{id, 0};
           std::vector<hsize_t> posy_count{work_items, max_peaks};
           std::vector<size_t> posy_data_lp(posy_count.begin(), posy_count.end());
+          if(work_items) {
           posx_data.set_dimensions(std::move(posy_data_lp));
-          read(posy, posy_start, posy_count, posy_data);
+          }
+          read(posy, posy_start, posy_count, posy_data, work_items);
+
 
           //compute centers
           size_t peaks_in_work = 0;
@@ -184,10 +206,10 @@ int main(int argc, char *argv[])
           std::vector<size_t> peaks_to_events, to_start_of_event;
           peaks_to_events.reserve(max_peaks * work_items);
           to_start_of_event.reserve(work_items* work_items);
-          for (size_t i = 0; i < work_items; ++i) {
-            peaks_in_work += npeaks_ptr[i];
-            for (int64_t j = 0; j < npeaks_ptr[i]; ++j) {
-              peaks_to_events.push_back(i);
+          for (size_t k = 0; k < work_items; ++k) {
+            peaks_in_work += npeaks_ptr[k];
+            for (int64_t j = 0; j < npeaks_ptr[k]; ++j) {
+              peaks_to_events.push_back(k);
               to_start_of_event.push_back(j);
             }
           }
@@ -196,36 +218,54 @@ int main(int argc, char *argv[])
           auto posx_ptr = static_cast<double const*>(posx_data.data());
           auto posy_ptr = static_cast<double const*>(posy_data.data());
           auto centers_ptr = static_cast<uint64_t*>(posy_data.data());
-          for (size_t i = 0; i < peaks_in_work; ++i) {
-            centers_ptr[i*3] = static_cast<size_t>(posx_ptr[peaks_to_events[i] * max_peaks + to_start_of_event[i]]);
-            centers_ptr[i*3+1] =  static_cast<size_t>(posy_ptr[peaks_to_events[i] * max_peaks + to_start_of_event[i]]);
-            centers_ptr[i*3+2] =  peaks_to_events[i];
+          for (size_t k = 0; k < peaks_in_work; ++k) {
+            centers_ptr[k*3] = static_cast<size_t>(posx_ptr[peaks_to_events[k] * max_peaks + to_start_of_event[k]]);
+            centers_ptr[k*3+1] =  static_cast<size_t>(posy_ptr[peaks_to_events[k] * max_peaks + to_start_of_event[k]]);
+            centers_ptr[k*3+2] =  peaks_to_events[k];
           }
 
           //read data
-          std::vector<hsize_t> data_start{id, 0};
-          std::vector<hsize_t> data_count{work_items, max_peaks};
-          read(data, data_start, data_count, data_data);
+          std::vector<hsize_t> data_start{id, 0, 0};
+          std::vector<hsize_t> data_count{work_items, data_lp_worksize.at(1), data_lp_worksize.at(0)};
+          std::vector<size_t> data_data_lp(data_count.begin(), data_count.end());
+          if(work_items) {
+          data_data.set_dimensions(std::move(data_data_lp));
+          }
+          read(data, data_start, data_count, data_data, work_items);
 
-          //trigger compression/decompression
-          comp->set_options({
-              {"roibin:centers", std::move(centers)}
-          });
-          pressio_data data_comp = pressio_data::empty(pressio_byte_dtype, {});
-          comp->compress(&data_data, &data_comp);
-          
-          //save metrics worth saving
-          total_compressed_size += 1;
-          total_size += 1;
+          if (work_items > 0) {
+            //trigger compression/decompression
+            comp->set_options({
+                {"roibin:centers", std::move(centers)}
+            });
+            pressio_data data_comp = pressio_data::empty(pressio_byte_dtype, {});
+            comp->compress(&data_data, &data_comp);
+            
+            //save metrics worth saving
+            total_compressed_size += data_comp.size_in_bytes();
+            total_size += data_data.size_in_bytes();
+          }
       }
+
+      auto global_compressed_size = total_compressed_size;
+      auto global_total_size = total_compressed_size;
+      MPI_Reduce(&total_compressed_size, &global_compressed_size, 1, MPI_UINT64_T, MPI_SUM, 0, work_comm);
+      MPI_Reduce(&total_size, &global_total_size, 1, MPI_UINT64_T, MPI_SUM, 0, work_comm);
+
       //compute global compression ratio
       if(work_rank == 0) {
-        std::cout << "global_cr=" << total_size/static_cast<double>(total_compressed_size)  << std::endl;
+        auto end = std::chrono::steady_clock::now();
+        auto wallclock_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+        std::cout << "global_cr=" << global_total_size/static_cast<double>(global_compressed_size)  << std::endl;
+        std::cout << "wallclock_ms=" << wallclock_ms  << std::endl;
+      }
+      } catch(std::exception const& ex) {
+        std::cout << "rank " << work_rank << " " << ex.what() << std::endl;
       }
 
 
     } catch(std::exception const& ex) {
-      std::cout << ex.what() << std::endl;
+      std::cerr << ex.what() << std::endl;
     }
   }
 

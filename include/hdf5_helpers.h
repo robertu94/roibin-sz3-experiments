@@ -7,19 +7,14 @@
 
 hid_t check_hdf5(hid_t err);
 
+std::vector<hsize_t> get_space_size(hid_t space);
 
 struct h5dset {
   hid_t space, dset;
   cleanup cleanup_space, cleanup_dset;
 
   std::vector<hsize_t> get_dims_hsize() const {
-    int ndims = H5Sget_simple_extent_ndims(space);
-    if(ndims < 0) {
-      throw std::runtime_error("failed to get dims");
-    }
-    std::vector<hsize_t> size(ndims);
-    H5Sget_simple_extent_dims(space, size.data(), nullptr);
-    return size;
+    return get_space_size(space);
   }
   std::vector<size_t> get_pressio_dims() const {
     auto hdims = get_dims_hsize();
@@ -115,6 +110,6 @@ void copy(
 
 }
 
-void read(h5dset const& dset, std::vector<hsize_t> const& start, std::vector<hsize_t> const& count, pressio_data& data);
+void read(h5dset const& dset, std::vector<hsize_t> const& start, std::vector<hsize_t> const& count, pressio_data& data, size_t work_items);
 
 #endif /* end of include guard: HDF5_HELPERS_H_NME0K8QT */

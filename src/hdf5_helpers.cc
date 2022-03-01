@@ -1,4 +1,7 @@
 #include "hdf5_helpers.h"
+#include <iostream>
+#include "debug_helpers.h"
+#include <libpressio_ext/cpp/printers.h>
 
 hid_t check_hdf5(hid_t err) {
   if(err < 0) {
@@ -6,6 +9,17 @@ hid_t check_hdf5(hid_t err) {
   }
   return err;
 }
+
+std::vector<hsize_t> get_space_size(hid_t space) {
+    int ndims = H5Sget_simple_extent_ndims(space);
+    if(ndims < 0) {
+      throw std::runtime_error("failed to get dims");
+    }
+    std::vector<hsize_t> size(ndims);
+    H5Sget_simple_extent_dims(space, size.data(), nullptr);
+    return size;
+}
+
 
 h5dset open_dset(hid_t cxi, const char* loc) {
     hid_t data_dset = check_hdf5(H5Dopen(cxi, loc, H5P_DEFAULT));
@@ -41,29 +55,38 @@ void read(
     h5dset const& dset,
     std::vector<hsize_t> const& start,
     std::vector<hsize_t> const& count,
-    pressio_data& data
+    pressio_data& data,
+    size_t work_items
     ) {
   hid_t file_space = check_hdf5(H5Scopy(dset.space));
   cleanup cleanup_space([=]{ H5Sclose(file_space); });
-  H5Sselect_hyperslab(
+  check_hdf5(H5Sselect_hyperslab(
       file_space, H5S_SELECT_SET,
       start.data(),
       /*stride*/nullptr,
       count.data(),
-      /*block*/nullptr);
+      /*block*/nullptr));
 
-  if(data.num_elements() != static_cast<size_t>(H5Sget_select_npoints(file_space))) {
-    throw std::runtime_error("space size does not equal buffer size");
+  if(work_items && (data.num_elements() != static_cast<size_t>(H5Sget_select_npoints(file_space)))) {
+    std::cout << std::boolalpha << work_items << std::endl;
+    throw std::runtime_error("space size does not equal buffer size" + std::to_string(data.num_elements()) + " " + std::to_string(H5Sget_select_npoints(file_space)));
   }
 
+  hid_t mem_space = check_hdf5(
+      H5Screate_simple(
+          count.size(),
+          count.data(),
+          nullptr
+        )
+      );
+
   hid_t xfer = check_hdf5(H5Pcreate(H5P_DATASET_XFER));
-  H5Pset_dxpl_mpio(xfer, H5FD_MPIO_COLLECTIVE);
+  H5Pset_dxpl_mpio(xfer, H5FD_MPIO_INDEPENDENT);
   cleanup cleanup_xfer([=]{ H5Pclose(xfer); });
   check_hdf5(H5Dread(
       dset.dset, pressio_to_hdf5_native_type(data.dtype()),
-      H5S_ALL, file_space, xfer, data.data()
+      mem_space, file_space, xfer, data.data()
       ));
   std::vector<size_t> lp_dims(count.rbegin(), count.rend());
   data.set_dimensions(std::move(lp_dims));
 }
-
