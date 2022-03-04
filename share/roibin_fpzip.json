@@ -2,5 +2,10 @@
   "pressio:compressor": "roibin",
   "roibin:background": "binning",
   "roibin:roi": "fpzip",
-  "binning:compressor": "fpzip"
+  "roibin:roi_size": [8,8,0],
+  "roibin:nthreads": {"type":0, "value": 6},
+  "binning:compressor": "fpzip",
+  "binning:bins": [2,2,1],
+  "binning:nthreads": {"type":0, "value": 6},
+  "fpzip:prec": {"type": 1, "value": 0}
 }

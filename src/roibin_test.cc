@@ -19,6 +19,7 @@ experimental code to test roibin_sz3
 -c chunk_size
 -f cxi_filename
 -p presiso config file
+-n workers workers_per_node
 -h print this message
 -v print the version information
 )";
@@ -258,6 +259,7 @@ int main(int argc, char *argv[])
         auto wallclock_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
         std::cout << "global_cr=" << global_total_size/static_cast<double>(global_compressed_size)  << std::endl;
         std::cout << "wallclock_ms=" << wallclock_ms  << std::endl;
+        std::cout << "bandwidth_GBps=" << global_total_size/static_cast<double>(wallclock_ms) * 1e-6  << std::endl;
       }
       } catch(std::exception const& ex) {
         std::cout << "rank " << work_rank << " " << ex.what() << std::endl;
