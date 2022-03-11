@@ -1,0 +1,4 @@
+{
+  "pressio:compressor": "bzip2",
+  "pressio:lossless": {"type":1,"value":9}
+}

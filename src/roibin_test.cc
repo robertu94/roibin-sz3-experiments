@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <chrono>
+#include <sstream>
 #include <fstream>
 #include <unistd.h>
 #include <mpi.h>
@@ -13,13 +14,31 @@
 #include "roibin_test_version.h"
 #include "hdf5_helpers.h"
 
+std::string basename(std::string const& base) {
+  auto last_slash = base.rfind('/');
+  if(base.empty()) {
+    return base;
+  } else if(base == "/") {
+    return base;
+  } else if(last_slash==std::string::npos) {
+    return base;
+  } else if(last_slash + 1==base.size()) {
+    return basename(base.substr(0, base.size() - 1));
+  } else {
+    return base.substr(last_slash + 1);
+  }
+}
+
+
+
 const std::string usage = R"(roibin_test
 experimental code to test roibin_sz3
 
--c chunk_size
--f cxi_filename
--p presiso config file
--n workers workers_per_node
+-c <chunk_size> chunk_size
+-d debug
+-f <cxi_filename> filename
+-p <presiso> config file
+-n <workers> workers_per_node
 -h print this message
 -v print the version information
 )";
@@ -27,8 +46,10 @@ experimental code to test roibin_sz3
 struct cmdline_args {
   std::string cxi_filename = "cxic0415_0101.cxi";
   std::string pressio_config_file = "share/blosc.json";
+  std::string debug_dir = (getenv("TMPDIR")? getenv("TMPDIR"): "/tmp/");
   size_t chunk_size = 1;
-  int32_t workers_per_node = 1;
+  int32_t workers_per_node = 0;
+  bool debug = false;
 };
 
 using namespace std::string_literals;
@@ -38,13 +59,16 @@ cmdline_args parse_args(int argc, char* argv[]) {
 
 
   int opt;
-  while((opt = getopt(argc, argv, "c:hvf:p:n:")) != -1) {
+  while((opt = getopt(argc, argv, "c:dhvf:p:n:")) != -1) {
     switch (opt) {
       case 'c':
         args.chunk_size = atoi(optarg);
         if(args.chunk_size == 0) {
           throw std::runtime_error("invalid chunk_size"s + optarg);
         }
+        break;
+      case 'd':
+        args.debug = true;
         break;
       case 'f':
         args.cxi_filename = optarg;
@@ -69,6 +93,16 @@ cmdline_args parse_args(int argc, char* argv[]) {
         break;
     }
   }
+  if(!args.pressio_config_file.size()) {
+    std::cout << "config file is required" << std::endl;
+    std::cout << usage << std::endl;
+    exit(1);
+  }
+  if(!args.cxi_filename.size()) {
+    std::cout << "cxi file is required" << std::endl;
+    std::cout << usage << std::endl;
+    exit(1);
+  }
 
   return args;
 }
@@ -89,6 +123,10 @@ int main(int argc, char *argv[])
   MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, world_rank, MPI_INFO_NULL, &per_node_comm);
   MPI_Comm_rank(per_node_comm, &per_node_rank);
   cleanup cleanup_per_node_rank([&]{MPI_Comm_free(&per_node_comm);});
+
+  if(args.workers_per_node == 0) {
+     MPI_Comm_size(per_node_comm, &args.workers_per_node);
+  }
 
   //create communicators with 1 rank per node
   int work_rank, work_size;
@@ -161,6 +199,7 @@ int main(int argc, char *argv[])
 
       try{
       auto begin = std::chrono::steady_clock::now();
+      uint64_t global_compress_ms = 0;
       for (size_t i = 0; i < num_events; i += (args.chunk_size*work_size)) {
           size_t id = i + work_rank * args.chunk_size;
           size_t work_items;
@@ -234,18 +273,39 @@ int main(int argc, char *argv[])
           }
           read(data, data_start, data_count, data_data, work_items);
 
+          uint64_t compress_time_ms = 0;
           if (work_items > 0) {
             //trigger compression/decompression
             comp->set_options({
                 {"roibin:centers", std::move(centers)}
             });
+            auto begin_compress = std::chrono::steady_clock::now();
             pressio_data data_comp = pressio_data::empty(pressio_byte_dtype, {});
-            comp->compress(&data_data, &data_comp);
+            if(comp->compress(&data_data, &data_comp)) {
+              std::cerr << comp->error_msg();
+              MPI_Abort(MPI_COMM_WORLD, comp->error_code());
+            }
+            auto end_compress = std::chrono::steady_clock::now();
+            compress_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_compress - begin_compress).count();
             
             //save metrics worth saving
             total_compressed_size += data_comp.size_in_bytes();
             total_size += data_data.size_in_bytes();
+            if(args.debug) {
+              auto metrics_results = comp->get_metrics_results();
+              nlohmann::json jmr = metrics_results;
+              std::stringstream ss;
+              auto cxi_basename = basename(args.cxi_filename);
+              auto config_basename = basename(args.pressio_config_file);
+              ss << args.debug_dir << cxi_basename << '-' << config_basename << '-' << id << '-' << (id+work_items) << ".json";
+              std::cerr << ss.rdbuf() << std::endl;
+              std::ofstream out(ss.str());
+              out << jmr;
+            }
           }
+          uint64_t longest_compress_ms;
+          MPI_Reduce(&compress_time_ms ,&longest_compress_ms, 1, MPI_UINT64_T, MPI_MAX, 0, work_comm);
+          global_compress_ms += longest_compress_ms;
       }
 
       auto global_compressed_size = total_compressed_size;
@@ -259,7 +319,9 @@ int main(int argc, char *argv[])
         auto wallclock_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
         std::cout << "global_cr=" << global_total_size/static_cast<double>(global_compressed_size)  << std::endl;
         std::cout << "wallclock_ms=" << wallclock_ms  << std::endl;
-        std::cout << "bandwidth_GBps=" << global_total_size/static_cast<double>(wallclock_ms) * 1e-6  << std::endl;
+        std::cout << "compress_ms=" << global_compress_ms  << std::endl;
+        std::cout << "compress_bandwidth_GBps=" << global_total_size/static_cast<double>(global_compress_ms) * 1e-6  << std::endl;
+        std::cout << "wallclock_bandwidth_GBps=" << global_total_size/static_cast<double>(wallclock_ms) * 1e-6  << std::endl;
       }
       } catch(std::exception const& ex) {
         std::cout << "rank " << work_rank << " " << ex.what() << std::endl;

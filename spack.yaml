@@ -4,7 +4,7 @@
 # configuration settings.
 spack:
   # add package specs to the `specs` list
-  specs: [libpressio-tools ^ libpressio+fpzip+hdf5+mgard+sz+zfp+json ^mgard@robertu94+cuda]
+  specs: [libpressio-tools ^ libpressio+fpzip+hdf5+mgard+sz+zfp+json+bzip2 ^mgard@robertu94+cuda]
   view: true
   repos:
   - ./robertu94_packages

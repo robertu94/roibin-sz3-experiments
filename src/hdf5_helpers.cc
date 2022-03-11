@@ -81,7 +81,7 @@ void read(
       );
 
   hid_t xfer = check_hdf5(H5Pcreate(H5P_DATASET_XFER));
-  H5Pset_dxpl_mpio(xfer, H5FD_MPIO_INDEPENDENT);
+  H5Pset_dxpl_mpio(xfer, H5FD_MPIO_COLLECTIVE);
   cleanup cleanup_xfer([=]{ H5Pclose(xfer); });
   check_hdf5(H5Dread(
       dset.dset, pressio_to_hdf5_native_type(data.dtype()),
