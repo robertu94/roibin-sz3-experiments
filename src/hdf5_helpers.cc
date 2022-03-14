@@ -68,8 +68,13 @@ void read(
       /*block*/nullptr));
 
   if(work_items && (data.num_elements() != static_cast<size_t>(H5Sget_select_npoints(file_space)))) {
-    std::cout << std::boolalpha << work_items << std::endl;
-    throw std::runtime_error("space size does not equal buffer size" + std::to_string(data.num_elements()) + " " + std::to_string(H5Sget_select_npoints(file_space)));
+		auto dims = data.dimensions();
+		std::reverse(dims.begin(), dims.end());
+    std::cout << std::boolalpha << static_cast<bool>(work_items) <<
+			" dims=" << printer{dims} <<
+			" start=" << printer{start} <<
+			" count=" << printer{count} << std::endl;
+    throw std::runtime_error("space size does not equal buffer size " + std::to_string(work_items) + " " + std::to_string(data.num_elements()) + " " + std::to_string(H5Sget_select_npoints(file_space)));
   }
 
   hid_t mem_space = check_hdf5(

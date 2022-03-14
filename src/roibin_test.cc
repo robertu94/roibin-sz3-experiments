@@ -235,7 +235,7 @@ int main(int argc, char *argv[])
           std::vector<hsize_t> posy_count{work_items, max_peaks};
           std::vector<size_t> posy_data_lp(posy_count.begin(), posy_count.end());
           if(work_items) {
-          posx_data.set_dimensions(std::move(posy_data_lp));
+          posy_data.set_dimensions(std::move(posy_data_lp));
           }
           read(posy, posy_start, posy_count, posy_data, work_items);
 
@@ -325,11 +325,13 @@ int main(int argc, char *argv[])
       }
       } catch(std::exception const& ex) {
         std::cout << "rank " << work_rank << " " << ex.what() << std::endl;
+				MPI_Abort(MPI_COMM_WORLD, 1);
       }
 
 
     } catch(std::exception const& ex) {
       std::cerr << ex.what() << std::endl;
+			MPI_Abort(MPI_COMM_WORLD, 1);
     }
   }
 

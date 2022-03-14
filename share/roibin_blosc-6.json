@@ -5,7 +5,7 @@
   "roibin:roi_size": [8,8,0],
   "roibin:nthreads": {"type":0, "value": 6},
   "binning:compressor": "blosc",
-  "binning:bins": [2,2,1],
+  "binning:shape": [2,2,1],
   "binning:nthreads": {"type":0, "value": 6},
   "blosc:compressor": "zstd",
   "blosc:doshuffle": {"type":1,"value":1},
