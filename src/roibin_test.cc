@@ -257,7 +257,7 @@ int main(int argc, char *argv[])
               {3, peaks_in_work});
           auto posx_ptr = static_cast<double const*>(posx_data.data());
           auto posy_ptr = static_cast<double const*>(posy_data.data());
-          auto centers_ptr = static_cast<uint64_t*>(posy_data.data());
+          auto centers_ptr = static_cast<uint64_t*>(centers.data());
           for (size_t k = 0; k < peaks_in_work; ++k) {
             centers_ptr[k*3] = static_cast<size_t>(posx_ptr[peaks_to_events[k] * max_peaks + to_start_of_event[k]]);
             centers_ptr[k*3+1] =  static_cast<size_t>(posy_ptr[peaks_to_events[k] * max_peaks + to_start_of_event[k]]);
