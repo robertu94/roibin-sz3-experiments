@@ -1,24 +1,20 @@
 #ifndef DEBUG_HELPERS_H_UEILIMND
 #define DEBUG_HELPERS_H_UEILIMND
-#include <iterator>
 #include <iostream>
+#include <iterator>
 
 template <class T>
 struct printer {
   T const& iterable;
-  decltype(std::begin(iterable)) begin() const {
-    return std::begin(iterable);
-  }
-  decltype(std::end(iterable)) end() const {
-    return std::end(iterable);
-  }
+  decltype(std::begin(iterable)) begin() const { return std::begin(iterable); }
+  decltype(std::end(iterable)) end() const { return std::end(iterable); }
 };
 template <class T>
 printer(T) -> printer<T>;
 
 template <class CharT, class Traits, class V>
-std::basic_ostream<CharT, Traits>&
-operator<<(std::basic_ostream<CharT, Traits>& out, printer<V>const& p) {
+std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>& out,
+                                              printer<V> const& p) {
   auto it = std::begin(p);
   auto end = std::end(p);
 
@@ -26,7 +22,7 @@ operator<<(std::basic_ostream<CharT, Traits>& out, printer<V>const& p) {
   if (it != end) {
     out << *it;
     ++it;
-    while(it != end) {
+    while (it != end) {
       out << ", " << *it;
       it++;
     }

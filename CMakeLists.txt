@@ -56,6 +56,7 @@ find_package(HDF5 REQUIRED COMPONENTS C)
 add_library(roibin_helpers
   ./src/hdf5_helpers.cc
   ./src/debug_helpers.cc
+  ./src/file_helpers.cc
   )
 target_compile_options(roibin_helpers PUBLIC 
   $<$<CONFIG:Debug>: -Wall -Werror -Wextra -Wpedantic>
@@ -92,6 +93,8 @@ target_link_libraries(roibin_test PRIVATE roibin_helpers)
 
 add_executable(hello_world ./src/hello_world.cc)
 target_link_libraries(hello_world PRIVATE MPI::MPI_CXX)
+
+add_executable(test_sendfile ./src/test_sendfile.cc)
 
 install(TARGETS roibin_test EXPORT roibin_test
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
