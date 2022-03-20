@@ -4,12 +4,18 @@
 # configuration settings.
 spack:
   # add package specs to the `specs` list
-  specs: [libpressio-tools ^ libpressio+fpzip+hdf5+mgard+sz+zfp+json+bzip2 ^mgard@robertu94+cuda,
-    git]
+  specs: [libpressio-tools+opt ^ libpressio+fpzip+hdf5+mgard+sz+sz3+zfp+json+bzip2+blosc
+      ^ libstdcompat+boost ^mgard@robertu94+cuda, git]
   view: true
   repos:
   - ./robertu94_packages
   packages:
+    openssl:
+      externals:
+      - spec: openssl@1.1.1m
+        prefix: /home/robertu/git/spack/opt/spack/linux-centos8-x86_64/gcc-8.3.1/openssl-1.1.1m-yuswcbm7m3capk6jy7grtnq2jva2aoko
+      - spec: openssl@1.1.1g
+        prefix: /usr
     autoconf:
       externals:
       - spec: autoconf@2.69
@@ -138,10 +144,6 @@ spack:
     openssh:
       externals:
       - spec: openssh@8.0p1
-        prefix: /usr
-    openssl:
-      externals:
-      - spec: openssl@1.1.1g
         prefix: /usr
     perl:
       externals:

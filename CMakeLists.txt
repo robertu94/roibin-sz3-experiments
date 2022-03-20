@@ -52,6 +52,8 @@ find_package(std_compat REQUIRED)
 find_package(LibPressio REQUIRED)
 find_package(MPI REQUIRED COMPONENTS CXX)
 find_package(HDF5 REQUIRED COMPONENTS C)
+find_package(LibPressioOpt REQUIRED)
+find_package(LibDistributed REQUIRED)
 
 add_library(roibin_helpers
   ./src/hdf5_helpers.cc
@@ -70,6 +72,7 @@ target_include_directories(roibin_helpers
 target_link_libraries(roibin_helpers
   PUBLIC
   LibPressio::libpressio
+  LibPressioOpt::libpressio_opt
   MPI::MPI_CXX
   hdf5::hdf5
   )

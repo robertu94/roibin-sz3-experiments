@@ -1,0 +1,23 @@
+{
+  "/pressio/opt/roibin/background/pressio:pressio:compressor": "blosc",
+  "/pressio/opt/roibin/background:binning:compressor": "pressio",
+  "/pressio/opt/roibin:roibin:background": "binning",
+  "/pressio/opt/roibin:roibin:roi": "fpzip",
+  "/pressio:pressio:compressor": "opt",
+  "/pressio/opt:opt:compressor": "roibin",
+  "/pressio/opt:opt:search": "fraz",
+  "/pressio/opt/roibin/background/pressio/blosc:pressio:lossless": {"type":1, "value":9},
+  "roibin:roi_size": [8,8,0],
+  "opt:inputs": ["/pressio/opt/roibin/background:binning:nthreads","/pressio/opt/roibin:roibin:nthreads", "/pressio/opt/roibin/background/pressio/blosc:blosc:numinternalthreads"],
+  "opt:output": ["/pressio/opt/roibin/composite/time:time:compress_many"],
+	"opt:objective_mode_name": "min",
+	"opt:is_integral": [1,1,1],
+	"opt:lower_bound": [1,1,1],
+	"opt:upper_bound": [4,4,4],
+	"/pressio/opt:opt:do_decompress": {"type": 1, "value": 0},
+	"opt:max_iterations": { "type": 0, "value": 32},
+  "roibin:nthreads": {"type":0, "value": 6},
+  "binning:shape": [2,2,1],
+  "binning:nthreads": {"type":0, "value": 6},
+  "fpzip:prec": {"type": 1, "value": 0}
+}

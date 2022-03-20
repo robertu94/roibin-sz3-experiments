@@ -41,10 +41,10 @@ const std::string usage = R"(roibin_test experimental code to test roibin_sz3
 -f <cxi_filename> filename
 -p <presiso> config file
 -n <workers> workers_per_node
--o <output_dir> path to output the compressed and decompresed cxi, enables decompression stage
+-o <output_file> path to output the compressed and decompresed cxi, enables decompression stage
 -h print this message
 -v print the version information
--w <write_events> number of events to write (defaults: 0 if output_dir is not set, otherwise num_events)
+-w <write_events> number of events to write (defaults: 0 if output_file is not set, otherwise num_events)
 )";
 // clang-format on
 
@@ -52,7 +52,7 @@ struct cmdline_args {
   std::string cxi_filename = "cxic0415_0101.cxi";
   std::string pressio_config_file = "share/blosc.json";
   std::string debug_dir = (getenv("TMPDIR") ? getenv("TMPDIR") : "/tmp/");
-  std::string output_dir;
+  std::string output_file;
   size_t chunk_size = 1;
   size_t write_events = std::numeric_limits<size_t>::max();
   int32_t workers_per_node = 0;
@@ -90,7 +90,7 @@ cmdline_args parse_args(int argc, char* argv[]) {
         exit(0);
         break;
       case 'o':
-        args.output_dir = optarg;
+        args.output_file = optarg;
         break;
       case 'w':
         args.write_events = atoi(optarg);
@@ -150,8 +150,8 @@ int main(int argc, char* argv[]) {
   MPI_Comm_rank(work_comm, &work_rank);
   MPI_Comm_size(work_comm, &work_size);
 
-  std::string write_path = args.output_dir + '/' + basename(args.cxi_filename);
-  if (!args.output_dir.empty() && world_rank == 0) {
+  std::string write_path = args.output_file;
+  if (!args.output_file.empty() && world_rank == 0) {
     try {
       std::cout << "started copy " << args.cxi_filename << " to " << write_path << std::endl;
       copy_file(args.cxi_filename, write_path);
@@ -185,7 +185,7 @@ int main(int argc, char* argv[]) {
       hid_t output_h5f;
       cleanup cleanup_output_h5f;
       h5dset output_data;
-      if(!args.output_dir.empty()) {
+      if(!args.output_file.empty()) {
         output_h5f = check_hdf5(H5Fopen(write_path.c_str(), H5F_ACC_RDWR, fapl));
         cleanup_output_h5f = cleanup([=]{H5Fclose(output_h5f);});
         output_data = open_dset(output_h5f, data_loc);
@@ -316,7 +316,7 @@ int main(int argc, char* argv[]) {
                 std::chrono::duration_cast<std::chrono::milliseconds>(end_compress - begin_compress).count();
           }
 
-          if (!args.output_dir.empty()) {
+          if (!args.output_file.empty()) {
             size_t write_work_items;
             if (id > args.write_events) {
               write_work_items = 0;
@@ -366,7 +366,7 @@ int main(int argc, char* argv[]) {
           MPI_Reduce(&compress_time_ms, &longest_compress_ms, 1, MPI_UINT64_T, MPI_MAX, 0, work_comm);
           global_compress_ms += longest_compress_ms;
 
-          if (!args.output_dir.empty()) {
+          if (!args.output_file.empty()) {
             uint64_t longest_decompress_ms;
             MPI_Reduce(&decompress_time_ms, &longest_decompress_ms, 1, MPI_UINT64_T, MPI_MAX, 0, work_comm);
             global_decompress_ms += longest_decompress_ms;
@@ -390,7 +390,7 @@ int main(int argc, char* argv[]) {
                     << global_total_size / static_cast<double>(global_compress_ms) * 1e-6 << std::endl;
           std::cout << "wallclock_bandwidth_GBps="
                     << global_total_size / static_cast<double>(wallclock_ms) * 1e-6 << std::endl;
-          if (!args.output_dir.empty()) {
+          if (!args.output_file.empty()) {
             std::cout << "decompress_bandwidth_GBps="
                       << global_total_size / static_cast<double>(global_decompress_ms) * 1e-6 << std::endl;
           }

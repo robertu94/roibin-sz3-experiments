@@ -1,0 +1,14 @@
+{
+  "/pressio:pressio:compressor": "opt",
+  "/pressio/opt:opt:compressor": "blosc",
+  "/pressio/opt:opt:search": "fraz",
+  "/pressio/opt/blosc:pressio:lossless": {"type":1, "value":6},
+  "opt:inputs": ["/pressio/opt/blosc:blosc:numinternalthreads"],
+  "opt:output": ["/pressio/opt/blosc/composite/time:time:compress_many"],
+	"opt:objective_mode_name": "min",
+	"opt:is_integral": [1],
+	"opt:lower_bound": [1],
+	"opt:upper_bound": [16],
+	"/pressio/opt:opt:do_decompress": {"type": 1, "value": 0},
+	"opt:max_iterations": { "type": 0, "value": 8}
+}
