@@ -1,0 +1,6 @@
+﻿---
+BasedOnStyle: Google
+ColumnLimit: '110'
+CompactNamespaces: 'true'
+
+...
