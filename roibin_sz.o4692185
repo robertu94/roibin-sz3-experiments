@@ -16970,7 +16970,7 @@ chunk_size=8 replica=3 config=share/zfp.json filename=/scratch1/robertu/chuck/cx
 /pressio:pressio:metric <char*> = "composite"
 /pressio:pressio:rel <double> = 0.001
 /pressio:pressio:reset_mode <bool> = <empty>
-smallscale_quality===
+smallscale===
 
 processing 0 1920
 processing 1920 3840
