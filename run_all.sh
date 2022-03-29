@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #PBS -N roibin_sz
-#PBS -l select=5:ncpus=40:mem=370gb:interconnect=hdr:mpiprocs=30,walltime=24:00:00
+#PBS -l select=1:ncpus=40:mem=370gb:interconnect=hdr:mpiprocs=30,walltime=24:00:00
 #PBS -m abe
 #PBS -M robertu@clemson.edu
 #PBS -j oe
@@ -51,23 +51,33 @@ echo fullscale===
 # done
 
 echo scalability===
-replica=1
-config=./share/roibin_sz.json
-chunk_size=1
-cxi_file=/scratch1/robertu/chuck/cxic00318_0123_0.cxi
-for procs in `seq 30 30 150`
-do
-  echo "chunk_size=$chunk_size replica=$replica config=$config filename=$cxi_file"
-	mpiexec -np $procs ./build/roibin_test -c $chunk_size -f "$cxi_file" -p "$config"
-done
-echo 
+# replica=1
+# config=./share/roibin_sz.json
+# chunk_size=1
+# cxi_file=/scratch1/robertu/chuck/cxic00318_0123_0.cxi
+# for procs in `seq 30 30 150`
+# do
+#   echo "chunk_size=$chunk_size replica=$replica config=$config filename=$cxi_file"
+# 	mpiexec -np $procs ./build/roibin_test -c $chunk_size -f "$cxi_file" -p "$config"
+# done
+# echo 
 
 echo opt===
+# replica=1
+# chunk_size=1
+# cxi_file=/scratch1/robertu/chuck/cxic00318_0123_0.cxi
+# for config in share/opt/*.json
+# do
+#   echo "chunk_size=$chunk_size replica=$replica config=$config filename=$cxi_file"
+# 	mpiexec ./build/roibin_test -c $chunk_size -f "$cxi_file" -o "$cxi_file.$(basename $config)" -p "$config"
+# done
+
+echo tune===
 replica=1
 chunk_size=1
 cxi_file=/scratch1/robertu/chuck/cxic00318_0123_0.cxi
-for config in share/opt/*.json
+for config in share/tune/*.json
 do
   echo "chunk_size=$chunk_size replica=$replica config=$config filename=$cxi_file"
-	mpiexec ./build/roibin_test -c $chunk_size -f "$cxi_file" -o "$cxi_file.$(basename $config)" -p "$config"
+	mpiexec ./build/roibin_test -c $chunk_size -f "$cxi_file" -p "$config"
 done
