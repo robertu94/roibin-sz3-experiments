@@ -1,5 +1,5 @@
 {
-  "/pressio/roibin/background/pressio:pressio:compressor": "sz",
+  "/pressio/roibin/background/pressio:pressio:compressor": "zfp",
   "/pressio/roibin/background:binning:compressor": "pressio",
   "/pressio/roibin:roibin:background": "binning",
   "/pressio/roibin:roibin:roi": "fpzip",
@@ -8,6 +8,6 @@
   "roibin:roi_size": [8,8,0],
   "roibin:nthreads": {"type":0, "value": 1},
   "binning:shape": [2,2,1],
-  "binning:nthreads": {"type":0, "value": 4},
+  "binning:nthreads": {"type":0, "value": 1},
   "fpzip:prec": {"type": 1, "value": 0}
 }
