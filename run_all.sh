@@ -74,10 +74,12 @@ echo opt===
 
 echo tune===
 replica=1
-chunk_size=1
 cxi_file=/scratch1/robertu/chuck/cxic00318_0123_0.cxi
+for chunk_size in 1 16 32 64
+do
 for config in share/tune/*.json
 do
   echo "chunk_size=$chunk_size replica=$replica config=$config filename=$cxi_file"
 	mpiexec ./build/roibin_test -c $chunk_size -f "$cxi_file" -p "$config"
+done
 done
