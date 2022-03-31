@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #PBS -N roibin_sz
-#PBS -l select=1:ncpus=40:mem=370gb:interconnect=hdr:mpiprocs=30,walltime=24:00:00
+#PBS -l select=1:ncpus=40:mem=370gb:interconnect=hdr:mpiprocs=40,walltime=24:00:00
 #PBS -m abe
 #PBS -M robertu@clemson.edu
 #PBS -j oe
@@ -79,7 +79,12 @@ for chunk_size in 1 16 32 64
 do
 for config in share/tune/*.json
 do
-  echo "chunk_size=$chunk_size replica=$replica config=$config filename=$cxi_file"
-	mpiexec ./build/roibin_test -c $chunk_size -f "$cxi_file" -p "$config"
+	if grep -q "untune" <<<"$config"; then
+		procs=40
+	else
+		procs=30
+	fi
+  echo "chunk_size=$chunk_size replica=$replica config=$config filename=$cxi_file" procs=$procs
+	mpiexec -np $procs ./build/roibin_test -c $chunk_size -f "$cxi_file" -p "$config"
 done
 done
