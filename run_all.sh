@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #PBS -N roibin_sz
-#PBS -l select=1:ncpus=40:mem=370gb:interconnect=hdr:mpiprocs=40,walltime=24:00:00
+#PBS -l select=10:ncpus=40:mem=370gb:interconnect=hdr:mpiprocs=40,walltime=24:00:00
 #PBS -m abe
 #PBS -M robertu@clemson.edu
 #PBS -j oe
@@ -73,18 +73,30 @@ echo opt===
 # done
 
 echo tune===
+# replica=1
+# cxi_file=/scratch1/robertu/chuck/cxic00318_0123_0.cxi
+# for chunk_size in 1 16 32 64
+# do
+# for config in share/tune/*.json
+# do
+# 	if grep -q "untune" <<<"$config"; then
+# 		procs=40
+# 	else
+# 		procs=30
+# 	fi
+#   echo "chunk_size=$chunk_size replica=$replica config=$config filename=$cxi_file" procs=$procs
+# 	mpiexec -np $procs ./build/roibin_test -c $chunk_size -f "$cxi_file" -p "$config"
+# done
+# done
+
+echo full_table2===
+chunk_size=1
 replica=1
-cxi_file=/scratch1/robertu/chuck/cxic00318_0123_0.cxi
-for chunk_size in 1 16 32 64
+for cxi_file in /scratch1/robertu/roibin_full/r0096/cxic0415_0096.cxi /scratch1/robertu/roibin_full/r0040/cxic0415_0040.cxi /scratch1/robertu/roibin_full/r0101/cxic0415_0101.cxi
 do
-for config in share/tune/*.json
+for config in share/table2/*.json
 do
-	if grep -q "untune" <<<"$config"; then
-		procs=40
-	else
-		procs=30
-	fi
-  echo "chunk_size=$chunk_size replica=$replica config=$config filename=$cxi_file" procs=$procs
-	mpiexec -np $procs ./build/roibin_test -c $chunk_size -f "$cxi_file" -p "$config"
+  echo "chunk_size=$chunk_size replica=$replica config=$config filename=$cxi_file"
+	mpiexec ./build/roibin_test -c $chunk_size -f "$cxi_file" -o "$cxi_file.$(basename $config)" -p "$config"
 done
 done
