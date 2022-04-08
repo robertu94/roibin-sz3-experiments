@@ -9,7 +9,8 @@ To build the code, you will need a copy of LibPressio with appropriate dependenc
 You can run an example code on a small dataset by running with the following container
 
 ```bash
-
+docker pull ghcr.io/robertu94/roibin:latest
+docker run -it --rm ghcr.io/robertu94/roibin:latest
 ```
 
 ### Building the container
@@ -48,3 +49,13 @@ Additionally some of this code requires a newer compiler and may not compile on 
 
 You may wish to configure the build to use your local version of MPI.
 Please see [the spack guide](https://spack.readthedocs.io/en/latest/build_settings.html#external-packages) for how to do this.
+
+### Running the Experiments
+
+```bash
+./build/roibin_test -c 1 -f /data/roibin.cxi -p ./share/roibin_sz.json
+```
+
+where `-f` is the input data file, and `-p` is the configuration to use.
+
+Please see `run_all.sh` for our production configurations.

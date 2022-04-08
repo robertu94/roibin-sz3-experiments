@@ -29,6 +29,14 @@ RUN source ./spack/share/spack/setup-env.sh &&\
     cd build && \
     cmake .. && \
     make -j$(nproc)
+RUN find -L /app/.spack-env/view/* -type f -exec readlink -f '{}' \; | \
+    grep -v 'nsight-compute' | \
+    xargs file -i | \
+    grep 'charset=binary' | \
+    grep 'charset=binary' | \
+    grep 'x-executable\|x-archive\|x-sharedlib' | \
+    awk -F: '{print $1}' | xargs strip -s
+
 
 from fedora:35 as final
 RUN dnf update -y && \
@@ -40,3 +48,5 @@ RUN dnf update -y && \
 RUN echo "demo    ALL=(ALL)       NOPASSWD: ALL" >> /etc/sudoers.d/demo
 COPY container_startup.sh /etc/profile.d/container_startup.sh
 COPY --from=builder --chown=demo:demo /app /app
+WORKDIR /app
+USER demo
