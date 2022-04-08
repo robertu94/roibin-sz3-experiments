@@ -4,13 +4,24 @@
 
 To build the code, you will need a copy of LibPressio with appropriate dependencies.
 
+### Obtaining Data
+
+CXI files can be requested from LCLS from [Chunhong "Chuck" Yoon](https://profiles.stanford.edu/chun-hong-yoon).  We are working on making a subset publicly available.
+
+### Quality Assessment
+
+The quality analysis results were produced using [PSOCAKE](https://confluence.slac.stanford.edu/display/PSDM/Psocake+SFX+tutorial).
+Correct use of this tool requires experience and expertise in serial
+crystallography and is outside the scope of this document.
+
+
 ### Container Install (for ease of setup)
 
 You can run an example code on a small dataset by running with the following container
 
 ```bash
 docker pull ghcr.io/robertu94/roibin:latest
-docker run -it --rm ghcr.io/robertu94/roibin:latest
+docker run -it --rm -v path/to/data:/data:ro ghcr.io/robertu94/roibin:latest
 ```
 
 ### Building the container
