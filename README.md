@@ -17,7 +17,8 @@ crystallography and is outside the scope of this document.
 
 ### Container Install (for ease of setup)
 
-You can run an example code on a small dataset by running with the following container
+You can run an example code on a small dataset by running with the following container and requesting a dataset.
+NOTE this file is >= 6 GB (without datasets; see above), download with caution.
 
 ```bash
 docker pull ghcr.io/robertu94/roibin:latest
@@ -27,6 +28,8 @@ docker run -it --rm -v path/to/data:/data:ro ghcr.io/robertu94/roibin:latest
 ### Building the container
 
 You can build the container yourself as follows:
+NOTE this process takes 3+ hours on a modern laptop, and most clusters do not
+provide sufficient permissions to run container builds on the cluster.
 
 ```bash
 git clone --recursive https://github.com/robertu94/roibin-sz3-experiments
