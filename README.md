@@ -8,6 +8,8 @@ To build the code, you will need a copy of LibPressio with appropriate dependenc
 
 CXI files can be requested from LCLS from [Chunhong "Chuck" Yoon](https://profiles.stanford.edu/chun-hong-yoon).  We are working on making a subset publicly available.
 
+To run in the container, you may need to set the files to world readable `chmod a+r` to be read inside the container.
+
 ### Quality Assessment
 
 The quality analysis results were produced using [PSOCAKE](https://confluence.slac.stanford.edu/display/PSDM/Psocake+SFX+tutorial).
@@ -22,7 +24,11 @@ NOTE this file is >= 6 GB (without datasets; see above), download with caution.
 
 ```bash
 docker pull ghcr.io/robertu94/roibin:latest
+#most systems
 docker run -it --rm -v path/to/data:/data:ro ghcr.io/robertu94/roibin:latest
+
+# if running on a SeLinux enforcing system
+docker run -it --rm --security-opt label=disable -v path/to/data:/data:ro roibin
 ```
 
 ### Building the container

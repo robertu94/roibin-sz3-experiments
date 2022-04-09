@@ -40,7 +40,7 @@ RUN find -L /app/.spack-env/view/* -type f -exec readlink -f '{}' \; | \
 
 from fedora:35 as final
 RUN dnf update -y && \
-    dnf install -y python3-devel libstdc++ openssh-clients && \
+    dnf install -y libgfortran python3-devel libstdc++ openssh-clients && \
     dnf clean all -y && \
     groupadd demo && \
     useradd demo -d /home/demo -g demo && \
