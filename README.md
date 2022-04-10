@@ -39,6 +39,7 @@ provide sufficient permissions to run container builds on the cluster.
 
 ```bash
 git clone --recursive https://github.com/robertu94/roibin-sz3-experiments
+cd roibin-sz3-experiments
 docker build . -t roibin
 ```
 
