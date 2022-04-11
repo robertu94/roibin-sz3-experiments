@@ -17,7 +17,6 @@ RUN su demo -c "git clone --depth=1 https://github.com/spack/spack /app/spack"
 WORKDIR /app
 USER demo
 RUN source /etc/profile &&\
-    spack compiler find &&  \
     spack external find && \
     spack repo add /app/robertu94_packages && \
     spack install && \
