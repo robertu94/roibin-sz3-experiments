@@ -19,16 +19,39 @@ crystallography and is outside the scope of this document.
 
 ### Container Install (for ease of setup)
 
-You can run an example code on a small dataset by running with the following container and requesting a dataset.
+We provide a container for `x86_64` image for ease of installation.
+
+This container differs from our experimental setup in 2 ways:
+
+1. The production build used `-march=native -mtune=native` for architecture optimized builds where as the container does not use these flags to maximize compatablity across `x86_64` hardware.
+2. We use MPICH in the container rather than the OpenMPI because we found MPICH more reliably ran in the container during testing
+
 NOTE this file is >= 6 GB (without datasets; see above), download with caution.
+
+#### Singularity
+
+You can install and start the container on many super computers using singularity.
+
+```bash
+# this first commmand may issue a ton of warnings regarding xattrs depending on your filesystem on your container host; these were benign in our testing.
+singularity pull roibin.sif docker://ghcr.io/robertu94/roibin:latest
+
+# -c enables additional confinement than singularity uses by default to prevent polution from /home
+# -B bind mounts in the data directory containing your CXI files.
+singularity run -c -B path/to/datadir:/data:ro roibin.sif bash
+```
+
+#### Docker
+
+You can run an example code on a small dataset by running with the following container and requesting a dataset.
 
 ```bash
 docker pull ghcr.io/robertu94/roibin:latest
 #most systems
-docker run -it --rm -v path/to/data:/data:ro ghcr.io/robertu94/roibin:latest
+docker run -it --rm -v path/to/datadir:/data:ro ghcr.io/robertu94/roibin:latest
 
 # if running on a SeLinux enforcing system
-docker run -it --rm --security-opt label=disable -v path/to/data:/data:ro roibin
+docker run -it --rm --security-opt label=disable -v path/to/datadir:/data:ro roibin
 ```
 
 ### Building the container
@@ -72,6 +95,8 @@ You may wish to configure the build to use your local version of MPI.
 Please see [the spack guide](https://spack.readthedocs.io/en/latest/build_settings.html#external-packages) for how to do this.
 
 ### Running the Experiments
+
+Once the container is installed, you can run our testing commmands.
 
 ```bash
 ./build/roibin_test -c 1 -f /data/roibin.cxi -p ./share/roibin_sz.json
