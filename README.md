@@ -1,5 +1,15 @@
 # ROIBIN-SZ Experiments
 
+## Where is the implementation of ROIBIN-SZ3?
+
+This repository contains only our experimental codes and configuration files.
+
+We contributed the composed building blocks for ROIBIN-SZ3 into the [libpressio](https://github.com/robertu94/libpressio) repository specifically [`binning.cc`](https://github.com/robertu94/libpressio/blob/d1fee62c84f82b71753d64a509d45244b9b9a88e/src/plugins/compressors/binning.cc),  [`roibin.cc`](https://github.com/robertu94/libpressio/blob/d1fee62c84f82b71753d64a509d45244b9b9a88e/src/plugins/compressors/roibin.cc) and [`roibin_impl.h`](https://github.com/robertu94/libpressio/blob/d1fee62c84f82b71753d64a509d45244b9b9a88e/src/plugins/compressors/roibin_impl.h) in the `src/plugins/compressors` subdirectory.  The automated tuning implementation was used directly from [OptZConfig/LibPressioOpt](https://github.com/robertu94/libpressio_opt).
+
+See [Obtaining Data](#obtaining-data) to request the dataset used.
+
+The quality assessment software was not designed in this paper.
+
 ## Getting started
 
 For ease of evaluation, we provide a docker container to evaluate our performance results.
