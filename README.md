@@ -6,9 +6,9 @@ To build the code, you will need a copy of LibPressio with appropriate dependenc
 
 ### Obtaining Data
 
-CXI files can be requested from LCLS from [Chunhong "Chuck" Yoon](https://profiles.stanford.edu/chun-hong-yoon).  We are working on making a subset publicly available.
+The data for these experiments are extreemly large (6+TB for the complete dataset used in the quality assessment) and require some process for release. CXI files used for this paper can be requested from LCLS from [Chunhong "Chuck" Yoon](https://profiles.stanford.edu/chun-hong-yoon).  We are working on making a useable subset publicly available.
 
-To run in the container, you may need to set the files to world readable `chmod a+r` to be read inside the container.
+To run in the container, you may need to set the files to world readable `chmod a+r` to be read inside the container depending on your container manager.
 
 ### Quality Assessment
 
@@ -24,7 +24,7 @@ We provide a container for `x86_64` image for ease of installation.
 This container differs from our experimental setup in 2 ways:
 
 1. The production build used `-march=native -mtune=native` for architecture optimized builds where as the container does not use these flags to maximize compatablity across `x86_64` hardware.
-2. We use MPICH in the container rather than the OpenMPI because we found MPICH more reliably ran in the container during testing
+2. We use MPICH in the container rather than the OpenMPI because we found MPICH more reliably ran in the container during testing while OpenMPI was the system MPI.
 
 NOTE this file is >= 6 GB (without datasets; see above), download with caution.
 
@@ -224,6 +224,9 @@ In this output, the lines beginning with `/pressio` are the represent the config
 All of the configurations we used can be found in the `/app/share` directory.
 More details on the meanings of these options by calling `pressio -a help <compressor_id>` where the compressor id is one of `binning`, `roi`, `opt`, `fpzip`, `sz`, `sz3`, `zfp`, `mgard`, `blosc`, etc...
 
+The `-o` flag provided in some of our run codes outputs the decompressed dataset.
+There is also a `-d` and `-D` which together output fine grained metrics on individual events.
+
 the lines `processing <start> <end>` show the progress of each stage of the compression.
 For example `processing 0 256` means that the first 256 events are being processed.
 
@@ -232,3 +235,15 @@ For example `processing 0 256` means that the first 256 events are being process
 `compress_ms` is the compression clock time.
 `compress_bandwidth_GBps` is the compression bandwidth in GB/s.
 `wallclock_bandwidth_GBps` is the wallclock bandwidth in GB/s
+
+# Results for Figures
+
+The script `run_all.sh` contains configurations for all runs for all results in the paper.  Each specific configuration corresponds to a configuration file in the `share` directory.  We would comment and uncomment specific sections to run various sub experiments.
+
+The results for table 2 are in from the lines in the sectoin labeled "full_table2".
+The results for table 3 come from the section labeled "full scale" with cxi_file set to the appropriate dataset.
+The results for table 4 come from the section labeled "tune"
+The results for table 5 come from the section labeled "scalability"
+The results for table 6 come from the section labeled "overview"
+
+Many of the visualizations come from the section labeled "full scale"
