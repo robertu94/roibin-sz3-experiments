@@ -2,7 +2,13 @@
 
 ## Getting started
 
-To build the code, you will need a copy of LibPressio with appropriate dependencies.
+For ease of evaluation, we provide a docker container to evaluate our performance results.
+
+There are several key steps:
+
+1. Obtaining Data
+2. Installing the software (either in a container or on the host system)
+3. Running the experiments
 
 ### Obtaining Data
 
@@ -94,7 +100,7 @@ Additionally some of this code requires a newer compiler and may not compile on 
 You may wish to configure the build to use your local version of MPI.
 Please see [the spack guide](https://spack.readthedocs.io/en/latest/build_settings.html#external-packages) for how to do this.
 
-### Running the Experiments
+## Running the Experiments
 
 Once the container is installed, you can run our testing commmands.
 
@@ -236,7 +242,7 @@ For example `processing 0 256` means that the first 256 events are being process
 `compress_bandwidth_GBps` is the compression bandwidth in GB/s.
 `wallclock_bandwidth_GBps` is the wallclock bandwidth in GB/s
 
-# Results for Figures
+## Results for Figures
 
 The script `run_all.sh` contains configurations for all runs for all results in the paper.  Each specific configuration corresponds to a configuration file in the `share` directory.  We would comment and uncomment specific sections to run various sub experiments.
 
