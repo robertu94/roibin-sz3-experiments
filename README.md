@@ -1,5 +1,11 @@
 # ROIBIN-SZ Experiments
 
+## System Information
+
+The hardware and software versions used for the performance evaluations can be found in Table I in the paper. These nodes come from Clemson University's Palmetto Cluster.
+
+The quality assessment was done on the PSANA system at SLAC using their PSOCAKE software installed there and integrated deeply into their site.
+
 ## Where is the implementation of ROIBIN-SZ3?
 
 This repository contains only our experimental codes and configuration files.
