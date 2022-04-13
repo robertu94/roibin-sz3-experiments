@@ -4,7 +4,7 @@
 
 The hardware and software versions used for the performance evaluations can be found in Table I in the paper. These nodes come from Clemson University's Palmetto Cluster.
 
-The quality assessment was done on the PSANA system at SLAC using their PSOCAKE software installed there and integrated deeply into their site.
+The quality assessment was done on the PSANA system at SLAC national accelerator laboratory using PSOCAKE, PHENIX, and CCP4.
 
 ## Where is the implementation of ROIBIN-SZ3?
 
@@ -28,13 +28,13 @@ There are several key steps:
 
 ### Obtaining Data
 
-The data for these experiments are extreemly large (6+TB for the complete dataset used in the quality assessment) and require some process for release. CXI files used for this paper can be requested from LCLS from [Chunhong "Chuck" Yoon](https://profiles.stanford.edu/chun-hong-yoon).  We are working on making a useable subset publicly available.
+The data for these experiments are extremely large (6+TB for the complete dataset used in the quality assessment). The full Se-SAD dataset is publicly available here [https://cxidb.org/id-54.html](https://cxidb.org/id-54.html), but require some domain knowledge to process the entire dataset. We include a subset of the data for testing roibin-sz3. For more information about CXI files used for this paper, contact the authors.  
 
 To run in the container, you may need to set the files to world readable `chmod a+r` to be read inside the container depending on your container manager.
 
 ### Quality Assessment
 
-The quality analysis results were produced using [PSOCAKE](https://confluence.slac.stanford.edu/display/PSDM/Psocake+SFX+tutorial).
+The quality analysis results were produced using [PSOCAKE](https://confluence.slac.stanford.edu/display/PSDM/Psocake+SFX+tutorial), [PHENIX](https://phenix-online.org), and [CCP4](https://www.ccp4.ac.uk).
 Correct use of this tool requires experience and expertise in serial
 crystallography and is outside the scope of this document.
 
