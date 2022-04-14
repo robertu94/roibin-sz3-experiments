@@ -47,5 +47,6 @@ RUN dnf update -y && \
 RUN echo "demo    ALL=(ALL)       NOPASSWD: ALL" >> /etc/sudoers.d/demo
 COPY container_startup.sh /etc/profile.d/container_startup.sh
 COPY --from=builder --chown=demo:demo /app /app
+COPY --chown=demo:demo ./example_data/ /app/example_data
 WORKDIR /app
 USER demo

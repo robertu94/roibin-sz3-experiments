@@ -28,7 +28,7 @@ There are several key steps:
 
 ### Obtaining Data
 
-The data for these experiments are extremely large (6+TB for the complete dataset used in the quality assessment). The full Se-SAD dataset is publicly available here [https://cxidb.org/id-54.html](https://cxidb.org/id-54.html), but require some domain knowledge to process the entire dataset. We include a subset of the data for testing roibin-sz3. For more information about CXI files used for this paper, contact the authors.  
+The data for these experiments are extremely large (6+TB for one complete dataset used in the quality assessment). The full Se-SAD dataset is publicly available here [https://cxidb.org/id-54.html](https://cxidb.org/id-54.html), but require some domain knowledge to process the entire dataset. We include a subset of the data for testing roibin-sz3. For more information about CXI files used for this paper, contact the authors.  
 
 To run in the container, you may need to set the files to world readable `chmod a+r` to be read inside the container depending on your container manager.
 
@@ -83,9 +83,23 @@ NOTE this process takes 3+ hours on a modern laptop, and most clusters do not
 provide sufficient permissions to run container builds on the cluster.
 
 ```bash
+# install/module load git-lfs, needed to download example_data for building the container
+sudo dnf install git-lfs #Fedora/CentOS Stream 8
+sudo apt-get install git-lfs # Ubuntu
+spack install git-lfs; spack load git-lfs # using spack
+
+# clone this repository
 git clone --recursive https://github.com/robertu94/roibin-sz3-experiments
 cd roibin-sz3-experiments
 docker build . -t roibin
+```
+
+If you forgot to install `git-lfs` before and have an empty `example_data` folder, you should install `git-lfs`
+and then run the following:
+
+```
+git lfs fetch
+git lfs checkout
 ```
 
 ### Manual Install (for scale)
@@ -121,7 +135,7 @@ Please see [the spack guide](https://spack.readthedocs.io/en/latest/build_settin
 Once the container is installed, you can run our testing commmands.
 
 ```bash
-mpiexec -np $procs /app/build/roibin_test -c 1 -f /data/roibin.cxi -p /app/share/roibin_sz.json
+mpiexec -np $procs /app/build/roibin_test -c 1 -f /app/example_data/cxic0415_0020.cxi -p /app/share/roibin_sz.json
 ```
 
 where `-f` is the input data file, and `-p` is the configuration to use `-c` is the chunk size.
@@ -130,9 +144,16 @@ Please see `run_all.sh` for our production configurations.
 
 ### Example Output
 
+NOTE results below from a laptop, not the server grade hardware from the paper
+and in the container with the differences noted above so bandwidth will differ.
+Additionally, this files results were only reported in aggregate in the paper
+and may not represent the entire 6TB dataset.  It was selected as one of the smaller
+files from the data-set to ease reproduce-ability.
+
+
 ```console
 [demo@620bb069495a app]$ cd /app
-[demo@620bb069495a app]$ mpiexec -np 8 ./build/roibin_test -f /data/roibin.cxi -p share/roibin_sz.json -c 32
+[demo@620bb069495a app]$ mpiexec -np 8 ./build/roibin_test -f ./example_data/cxic0415_0020.cxi -p ./share/roibin_sz.json -c 32
 /pressio/composite/time:time:metric <char*> = "noop"
 /pressio/composite:composite:names <char*[]> = {}
 /pressio/composite:composite:plugins <char*[]> = {size, time, }
@@ -234,12 +255,11 @@ Please see `run_all.sh` for our production configurations.
 /pressio:pressio:reset_mode <bool> = <empty>
 
 processing 0 256
-processing 256 512
-global_cr=79.6186
-wallclock_ms=4329
-compress_ms=1213
-compress_bandwidth_GBps=3.87813
-wallclock_bandwidth_GBps=1.08667
+global_cr=51.805
+wallclock_ms=2811
+compress_ms=1098
+compress_bandwidth_GBps=1.08781
+wallclock_bandwidth_GBps=0.424909
 ```
 
 In this output, the lines beginning with `/pressio` are the represent the configuration used for the experiment.
