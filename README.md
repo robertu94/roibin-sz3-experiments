@@ -84,7 +84,7 @@ You can build the container yourself as follows:
 NOTE this process takes 3+ hours on a modern laptop, and most clusters do not
 provide sufficient permissions to run container builds on the cluster.
 
-Additional some of these require 4GB/RAM
+Additional some of the dependencies (i.e. MGARD) require 4GB/RAM per core to build.
 
 ```bash
 # install/module load git-lfs, needed to download example_data for building the container
