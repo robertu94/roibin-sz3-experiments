@@ -1,9 +1,13 @@
 {
-  "/pressio/roibin/background:pressio:compressor": "sz",
+  "/pressio/roibin/background:pressio:compressor": "qoz",
   "/pressio/roibin:roibin:background": "pressio",
   "/pressio/roibin:roibin:roi": "fpzip",
   "/pressio:pressio:compressor": "roibin",
-  "/pressio/roibin/background/sz:pressio:abs": 10,
+  "/pressio/roibin/background/qoz:pressio:abs": 10,
+  "qoz:maxstep": {
+    "type": 13,
+    "value": 8
+  },
   "roibin:roi_size": [8,8,0],
   "roibin:nthreads": {"type":0, "value": 1},
   "fpzip:prec": {"type": 1, "value": 0}

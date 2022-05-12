@@ -41,14 +41,14 @@ echo smallscale===
 
 echo fullscale===
 # full-scale quality assessment
-# config=./share/roibin_sz.json
-# chunk_size=1
-# replica=1
-# for cxi_file in /scratch1/robertu/chuck/full_eval/cxic00318_0123_*.cxi
-# do
-#   echo "chunk_size=$chunk_size replica=$replica config=$config filename=$cxi_file"
-# 	mpiexec ./build/roibin_test -c $chunk_size -f "$cxi_file" -o "$cxi_file.$(basename $config)" -p "$config"
-# done
+config=./share/roibin_qoz.json
+chunk_size=1
+replica=1
+for cxi_file in /scratch1/robertu/chuck/full_eval/cxic00318_0123_*.cxi
+do
+  echo "chunk_size=$chunk_size replica=$replica config=$config filename=$cxi_file"
+	mpiexec ./build/roibin_test -c $chunk_size -f "$cxi_file" -o "$cxi_file.$(basename $config)" -p "$config"
+done
 
 echo scalability===
 # replica=1
@@ -90,13 +90,13 @@ echo tune===
 # done
 
 echo full_table2===
-chunk_size=1
-replica=1
-for cxi_file in /scratch1/robertu/roibin_full/r0096/cxic0415_0096.cxi /scratch1/robertu/roibin_full/r0040/cxic0415_0040.cxi /scratch1/robertu/roibin_full/r0101/cxic0415_0101.cxi
-do
-for config in share/table2/*.json
-do
-  echo "chunk_size=$chunk_size replica=$replica config=$config filename=$cxi_file"
-	mpiexec ./build/roibin_test -c $chunk_size -f "$cxi_file" -o "$cxi_file.$(basename $config)" -p "$config"
-done
-done
+# chunk_size=1
+# replica=1
+# for cxi_file in /scratch1/robertu/roibin_full/r0096/cxic0415_0096.cxi /scratch1/robertu/roibin_full/r0040/cxic0415_0040.cxi /scratch1/robertu/roibin_full/r0101/cxic0415_0101.cxi
+# do
+# for config in share/table2/*.json
+# do
+#   echo "chunk_size=$chunk_size replica=$replica config=$config filename=$cxi_file"
+# 	mpiexec ./build/roibin_test -c $chunk_size -f "$cxi_file" -o "$cxi_file.$(basename $config)" -p "$config"
+# done
+# done

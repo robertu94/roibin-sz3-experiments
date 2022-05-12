@@ -1,5 +1,5 @@
 {
-  "/pressio/roibin/background/pressio:pressio:compressor": "sz3",
+  "/pressio/roibin/background/pressio:pressio:compressor": "qoz",
   "/pressio/roibin/background:binning:compressor": "pressio",
   "/pressio/roibin:roibin:background": "binning",
   "/pressio/roibin:roibin:roi": "fpzip",
