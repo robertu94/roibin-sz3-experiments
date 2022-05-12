@@ -34,9 +34,11 @@ To run in the container, you may need to set the files to world readable `chmod 
 
 ### Quality Assessment
 
-The quality analysis results were produced using [PSOCAKE](https://confluence.slac.stanford.edu/display/PSDM/Psocake+SFX+tutorial), [PHENIX](https://phenix-online.org), and [CCP4](https://www.ccp4.ac.uk).
+The quality analysis results (Figures 1,4-8 and Table 3)  were produced using [PSOCAKE](https://confluence.slac.stanford.edu/display/PSDM/Psocake+SFX+tutorial), [PHENIX](https://phenix-online.org), and [CCP4](https://www.ccp4.ac.uk).
 Correct use of this tool requires experience and expertise in serial
 crystallography and is outside the scope of this document.
+
+Where decompressed outputs were needed for inputs for these tools, they were outputted from the Performance Assessment codes.
 
 
 ### Container Install (for ease of setup)
@@ -81,6 +83,8 @@ docker run -it --rm --security-opt label=disable -v path/to/datadir:/data:ro roi
 You can build the container yourself as follows:
 NOTE this process takes 3+ hours on a modern laptop, and most clusters do not
 provide sufficient permissions to run container builds on the cluster.
+
+Additional some of the dependencies (i.e. MGARD) require 4GB/RAM per core to build.
 
 ```bash
 # install/module load git-lfs, needed to download example_data for building the container
@@ -280,7 +284,7 @@ For example `processing 0 256` means that the first 256 events are being process
 
 ## Results for Figures
 
-The script `run_all.sh` contains configurations for all runs for all results in the paper.  Each specific configuration corresponds to a configuration file in the `share` directory.  We would comment and uncomment specific sections to run various sub experiments.
+The script `run_all.sh` contains configurations for all runs for all results in the paper.  Each specific configuration corresponds to a configuration file in the `share` directory.  We would comment and uncomment specific sections to run various sub experiments. All results output metrics files (not the decompressed data) are also included from all past runs.
 
 The results for table 2 are in from the lines in the sectoin labeled "full_table2".
 The results for table 3 come from the section labeled "full scale" with cxi_file set to the appropriate dataset.
