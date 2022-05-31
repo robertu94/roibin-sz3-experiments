@@ -82,6 +82,10 @@ configure_file(
   ${CMAKE_CURRENT_BINARY_DIR}/include/roibin_test_version.h
   )
 
+
+add_executable(timeout ./src/timeout.cc)
+target_link_libraries(timeout PRIVATE roibin_helpers)
+
 add_executable(partition ./src/partition.cc)
 target_link_libraries(partition PRIVATE roibin_helpers)
 

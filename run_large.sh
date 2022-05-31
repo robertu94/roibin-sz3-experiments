@@ -21,7 +21,7 @@ do
 	do
 		if [ ! -f "$cxi_file.$(basename $config)" ]; then
 			echo "chunk_size=$chunk_size replica=$replica config=$config filename=$cxi_file"
-			mpiexec ./build/roibin_test -c $chunk_size -f "$cxi_file" -o "$cxi_file.$(basename $config)" -p "$config"
+			./build/timeout 1800 mpiexec ./build/roibin_test -c $chunk_size -f $cxi_file -o $cxi_file.$(basename $config) -p $config
 		else
 			echo "SKIPPED chunk_size=$chunk_size replica=$replica config=$config filename=$cxi_file"
 		fi

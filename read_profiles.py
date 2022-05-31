@@ -13,10 +13,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--input_directory", type=Path, default=Path(os.environ.get("TMPDIR", "/tmp")))
 args = parser.parse_args()
 
-class args:
-    input_directory = Path("/tmp")
-
-
 def search(pattern):
     compression_times = []
     compression_ratios = []
@@ -48,12 +44,10 @@ def search(pattern):
     return compression_times, compression_ratios
 
 
-untuned_pattern = "roibin.cxi-untune-roibin_sz.json-*.json"
-tuned_pattern = "roibin.cxi-roibin_sz.json-*.json"
+untuned_pattern = "cxic00318_0123_0.cxi-untune-roibin_sz.json-*.json"
+tuned_pattern = "cxic00318_0123_0.cxi-roibin_sz.json-*.json"
 uct, ucr = search(untuned_pattern)
 ct, cr = search(tuned_pattern)
-uct.describe() - ct.describe()
+#uct.describe() - ct.describe()
 
-compression_times.describe()
-
-compression_ratios.describe()
+print(uct.describe())

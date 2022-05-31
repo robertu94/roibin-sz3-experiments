@@ -51,12 +51,14 @@ const std::string usage = R"(roibin_test experimental code to test roibin_sz3
 struct cmdline_args {
   std::string cxi_filename = "cxic0415_0101.cxi";
   std::string pressio_config_file = "share/blosc.json";
-  std::string debug_dir = (getenv("TMPDIR") ? getenv("TMPDIR") : "/tmp/");
+  std::string debug_dir = (getenv("TMPDIR") ? (std::string(getenv("TMPDIR")) + "/") : std::string("/tmp/"));
   std::string output_file;
   size_t chunk_size = 1;
+  size_t start_event = 0;
   size_t write_events = std::numeric_limits<size_t>::max();
   int32_t workers_per_node = 0;
   bool debug = false;
+	bool skip_copy = false;
 };
 
 using namespace std::string_literals;
@@ -65,7 +67,7 @@ cmdline_args parse_args(int argc, char* argv[]) {
   cmdline_args args;
 
   int opt;
-  while ((opt = getopt(argc, argv, "c:dD:hvf:o:p:n:")) != -1) {
+  while ((opt = getopt(argc, argv, "c:dD:hvf:o:p:n:s:")) != -1) {
     switch (opt) {
       case 'c':
         args.chunk_size = atoi(optarg);
@@ -95,6 +97,10 @@ cmdline_args parse_args(int argc, char* argv[]) {
       case 'w':
         args.write_events = atoi(optarg);
         break;
+			case 's':
+        args.start_event = atoi(optarg);
+				args.skip_copy = true;
+				break;
       case 'n':
         args.workers_per_node = atoi(optarg);
         if (args.workers_per_node < 1) {
@@ -151,7 +157,7 @@ int main(int argc, char* argv[]) {
   MPI_Comm_size(work_comm, &work_size);
 
   std::string write_path = args.output_file;
-  if (!args.output_file.empty() && world_rank == 0) {
+  if (!args.output_file.empty() && world_rank == 0 && !args.skip_copy) {
     try {
       std::cout << "started copy " << args.cxi_filename << " to " << write_path << std::endl;
       copy_file(args.cxi_filename, write_path);
@@ -226,7 +232,7 @@ int main(int argc, char* argv[]) {
         auto begin = std::chrono::steady_clock::now();
         uint64_t global_compress_ms = 0;
         uint64_t global_decompress_ms = 0;
-        for (size_t i = 0; i < num_events; i += (args.chunk_size * work_size)) {
+        for (size_t i = args.start_event; i < num_events; i += (args.chunk_size * work_size)) {
           size_t id = i + work_rank * args.chunk_size;
           size_t read_work_items;
           if (id > num_events) {
@@ -317,6 +323,7 @@ int main(int argc, char* argv[]) {
           }
 
           if (!args.output_file.empty()) {
+						try {
             size_t write_work_items;
             if (id > args.write_events) {
               write_work_items = 0;
@@ -345,6 +352,10 @@ int main(int argc, char* argv[]) {
                                                   data_lp_worksize.at(0)};
             std::vector<size_t> write_data_data_lp(data_count.begin(), data_count.end());
             write(output_data, write_data_start, write_data_count, data_output, write_work_items);
+						} catch(std::exception const& write_ex) {
+							std::cerr << "write exception " << write_ex.what() << std::endl;
+							MPI_Abort(MPI_COMM_WORLD, 1);
+						}
           }
 
           // save metrics worth saving
