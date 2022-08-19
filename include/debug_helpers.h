@@ -2,6 +2,8 @@
 #define DEBUG_HELPERS_H_UEILIMND
 #include <iostream>
 #include <iterator>
+#include <sstream>
+#include <mpi.h>
 
 template <class T>
 struct printer {
@@ -30,4 +32,15 @@ std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>&
   out << '}';
   return out;
 }
+
+extern double inital_time;
+
+template <class ...Ts>
+void logger(Ts&&... ts) {
+    std::stringstream ss;
+    ss << "time=" << (MPI_Wtime() - inital_time) << ' ';
+    (ss << ... << std::forward<Ts>(ts));
+    std::cerr << ss.rdbuf() << std::endl;
+}
+
 #endif /* end of include guard: DEBUG_HELPERS_H_UEILIMND */

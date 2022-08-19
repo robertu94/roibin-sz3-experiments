@@ -104,9 +104,9 @@ void copy(h5dset const& data, std::vector<hsize_t> const& count, hid_t dcpl, hid
 }
 
 void read(h5dset const& dset, std::vector<hsize_t> const& start, std::vector<hsize_t> const& count,
-          pressio_data& data, size_t work_items);
+          pressio_data& data, size_t work_items, bool debug=false);
 
 void write(h5dset const& dset, std::vector<hsize_t> const& start, std::vector<hsize_t> const& count,
-           pressio_data& data, size_t work_items);
+           pressio_data& data, size_t work_items, bool debug=false);
 
 #endif /* end of include guard: HDF5_HELPERS_H_NME0K8QT */

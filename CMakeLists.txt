@@ -76,7 +76,7 @@ target_link_libraries(roibin_helpers
   MPI::MPI_CXX
   hdf5::hdf5
   )
-target_compile_features(roibin_helpers PUBLIC cxx_std_17)
+target_compile_features(roibin_helpers PUBLIC cxx_std_20)
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/src/roibin_test_version.h.in
   ${CMAKE_CURRENT_BINARY_DIR}/include/roibin_test_version.h

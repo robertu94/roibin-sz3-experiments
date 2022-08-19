@@ -15,6 +15,7 @@
 #include "cleanup.h"
 #include "file_helpers.h"
 #include "hdf5_helpers.h"
+#include "debug_helpers.h"
 #include "roibin_test_version.h"
 
 std::string basename(std::string const& base) {
@@ -57,6 +58,7 @@ struct cmdline_args {
   size_t write_events = std::numeric_limits<size_t>::max();
   int32_t workers_per_node = 0;
   bool debug = false;
+  bool debug_buffers = false;
 };
 
 using namespace std::string_literals;
@@ -65,13 +67,16 @@ cmdline_args parse_args(int argc, char* argv[]) {
   cmdline_args args;
 
   int opt;
-  while ((opt = getopt(argc, argv, "c:dD:hvf:o:p:n:")) != -1) {
+  while ((opt = getopt(argc, argv, "bc:dD:hvf:o:p:n:")) != -1) {
     switch (opt) {
       case 'c':
         args.chunk_size = atoi(optarg);
         if (args.chunk_size == 0) {
           throw std::runtime_error("invalid chunk_size"s + optarg);
         }
+        break;
+      case 'b':
+        args.debug_buffers = true;
         break;
       case 'd':
         args.debug = true;
@@ -125,6 +130,7 @@ cmdline_args parse_args(int argc, char* argv[]) {
 int main(int argc, char* argv[]) {
   int world_rank, world_size, per_node_rank;
   MPI_Init(&argc, &argv);
+  inital_time = MPI_Wtime();
   cleanup cleanup_init([&] { MPI_Finalize(); });
 
   auto args = parse_args(argc, argv);
@@ -157,7 +163,7 @@ int main(int argc, char* argv[]) {
       copy_file(args.cxi_filename, write_path);
       std::cout << "copied " << args.cxi_filename << " to " << write_path << std::endl;
     } catch (std::exception const& ex) {
-      std::cerr << ex.what() << std::endl;
+      logger(ex.what());
       MPI_Abort(MPI_COMM_WORLD, 1);
     }
   }
@@ -218,8 +224,10 @@ int main(int argc, char* argv[]) {
       comp->set_options(
           {{"pressio:metric", "composite"}, {"composite:plugins", std::vector<std::string>{"size", "time"}}});
 
+      auto const cxi_basename = basename(args.cxi_filename);
+      auto const config_basename = basename(args.pressio_config_file);
       if (work_rank == 0) {
-        std::clog << comp->get_options() << std::endl;
+        logger(comp->get_options());
       }
 
       try {
@@ -238,7 +246,7 @@ int main(int argc, char* argv[]) {
           }
 
           if (work_rank == 0) {
-            std::clog << "processing " << i << " " << i + (args.chunk_size * work_size) << std::endl;
+            logger("processing ", i, " ", i + (args.chunk_size * work_size));
           }
 
           // read npeaks
@@ -279,6 +287,9 @@ int main(int argc, char* argv[]) {
               to_start_of_event.push_back(j);
             }
           }
+          if(args.debug) {
+              logger("npeaks: ", id, ' ', peaks_in_work);
+          }
           pressio_data centers = pressio_data::owning(pressio_uint64_dtype, {3, peaks_in_work});
           auto posx_ptr = static_cast<double const*>(posx_data.data());
           auto posy_ptr = static_cast<double const*>(posy_data.data());
@@ -292,13 +303,15 @@ int main(int argc, char* argv[]) {
           }
 
           // read data
-          std::vector<hsize_t> data_start{id, 0, 0};
-          std::vector<hsize_t> data_count{read_work_items, data_lp_worksize.at(1), data_lp_worksize.at(0)};
-          std::vector<size_t> data_data_lp(data_count.begin(), data_count.end());
+          std::vector<hsize_t> const data_start{id, 0, 0};
+          std::vector<hsize_t> const data_count{read_work_items, data_lp_worksize.at(1), data_lp_worksize.at(0)};
+          std::vector<size_t>  const data_data_lp(data_count.begin(), data_count.end());
           if (read_work_items) {
-            data_data.set_dimensions(std::move(data_data_lp));
+            data_data.set_dimensions(std::move(std::vector(data_data_lp)));
           }
-          read(data, data_start, data_count, data_data, read_work_items);
+          logger("loading: ", id, " start=", printer(data_start), " count=", printer(data_count),  " items=", read_work_items);
+          read(data, data_start, data_count, data_data, read_work_items, args.debug);
+          logger("loaded: ", id, " start=", printer(data_start), " count=", printer(data_count),  " items=", read_work_items);
 
           uint64_t compress_time_ms = 0;
           uint64_t decompress_time_ms = 0;
@@ -308,7 +321,7 @@ int main(int argc, char* argv[]) {
             comp->set_options({{"roibin:centers", std::move(centers)}});
             auto begin_compress = std::chrono::steady_clock::now();
             if (comp->compress(&data_data, &data_comp)) {
-              std::cerr << comp->error_msg();
+              logger(comp->error_msg());
               MPI_Abort(MPI_COMM_WORLD, comp->error_code());
             }
             auto end_compress = std::chrono::steady_clock::now();
@@ -330,7 +343,7 @@ int main(int argc, char* argv[]) {
             if (write_work_items > 0) {
               auto begin_decompress = std::chrono::steady_clock::now();
               if (comp->decompress(&data_comp, &data_output)) {
-                std::cerr << comp->error_msg();
+                logger(comp->error_msg());
                 MPI_Abort(MPI_COMM_WORLD, comp->error_code());
               }
               auto end_decompress = std::chrono::steady_clock::now();
@@ -344,7 +357,26 @@ int main(int argc, char* argv[]) {
             std::vector<hsize_t> write_data_count{write_work_items, data_lp_worksize.at(1),
                                                   data_lp_worksize.at(0)};
             std::vector<size_t> write_data_data_lp(data_count.begin(), data_count.end());
-            write(output_data, write_data_start, write_data_count, data_output, write_work_items);
+            if(args.debug_buffers){
+                std::stringstream ss;
+                ss << args.debug_dir << cxi_basename << '-' << config_basename << '-' << id << '-'
+                   << (id + read_work_items) << ".bin";
+                std::string debug_buffers_filename = ss.str();
+                pressio_io posix = library.get_io("posix");
+                posix->set_options({
+                        {"io:path", debug_buffers_filename}
+                    });
+                logger("writing output buffer ", id);
+                posix->write(&data_output);
+                logger("done writing output buffer ", id);
+            }
+            if(args.debug) {
+                logger("commiting: ", id, " start=", printer(write_data_start), " count=", printer(write_data_count),  " items=", write_work_items);
+            }
+            write(output_data, write_data_start, write_data_count, data_output, write_work_items, args.debug);
+            if(args.debug) {
+                logger("commited: ", id);
+            }
           }
 
           // save metrics worth saving
@@ -354,11 +386,9 @@ int main(int argc, char* argv[]) {
             auto metrics_results = comp->get_metrics_results();
             nlohmann::json jmr = metrics_results;
             std::stringstream ss;
-            auto cxi_basename = basename(args.cxi_filename);
-            auto config_basename = basename(args.pressio_config_file);
             ss << args.debug_dir << cxi_basename << '-' << config_basename << '-' << id << '-'
                << (id + read_work_items) << ".json";
-            std::cerr << ss.rdbuf() << std::endl;
+            logger(ss.rdbuf());
             std::ofstream out(ss.str());
             out << jmr;
           }
@@ -401,7 +431,7 @@ int main(int argc, char* argv[]) {
       }
 
     } catch (std::exception const& ex) {
-      std::cerr << ex.what() << std::endl;
+      logger(ex.what());
       MPI_Abort(MPI_COMM_WORLD, 1);
     }
   }

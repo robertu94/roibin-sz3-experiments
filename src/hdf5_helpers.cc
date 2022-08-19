@@ -48,12 +48,19 @@ hid_t pressio_to_hdf5_native_type(pressio_dtype type) {
 }
 
 void write(h5dset const& dset, std::vector<hsize_t> const& start, std::vector<hsize_t> const& count,
-           pressio_data& data, size_t work_items) {
+           pressio_data& data, size_t work_items, bool debug) {
+  if(debug) {
+    auto dims = data.dimensions();
+    std::reverse(dims.begin(), dims.end());
+    logger("pre-write: ", std::boolalpha , static_cast<bool>(work_items) , " dims=" , printer{dims}
+              , " start=" , printer{start} , " count=" , printer{count}, " dtype=" , data.dtype());
+  }
   hid_t file_space = check_hdf5(H5Scopy(dset.space));
   cleanup cleanup_file_space([=] { H5Sclose(file_space); });
   check_hdf5(H5Sselect_hyperslab(file_space, H5S_SELECT_SET, start.data(),
                                  /*stride*/ nullptr, count.data(), /*block*/ nullptr));
 
+  if(debug) logger("write-elems: data=", data.num_elements() , " space=", H5Sget_select_npoints(file_space), " work-items=" , work_items, "start=", printer{start});
   if (work_items &&
       (data.num_elements() != static_cast<size_t>(H5Sget_select_npoints(file_space)))) {
     auto dims = data.dimensions();
@@ -68,18 +75,27 @@ void write(h5dset const& dset, std::vector<hsize_t> const& start, std::vector<hs
   hid_t xfer = check_hdf5(H5Pcreate(H5P_DATASET_XFER));
   H5Pset_dxpl_mpio(xfer, H5FD_MPIO_COLLECTIVE);
   cleanup cleanup_xfer([=] { H5Pclose(xfer); });
+  if (debug) logger("start-write " , printer{start});
   check_hdf5(H5Dwrite(dset.dset, pressio_to_hdf5_native_type(data.dtype()), mem_space, file_space,
                      xfer, data.data()));
+  if (debug) logger("end-write " , printer{start});
 }
 
 void read(h5dset const& dset, std::vector<hsize_t> const& start, std::vector<hsize_t> const& count,
-          pressio_data& data, size_t work_items) {
+          pressio_data& data, size_t work_items, bool debug) {
+  if(debug) {
+    auto dims = data.dimensions();
+    std::reverse(dims.begin(), dims.end());
+    logger("pre-read: ", std::boolalpha , static_cast<bool>(work_items) , " dims=" , printer{dims}
+              , " start=" , printer{start} , " count=" , printer{count}, " dtype=" , data.dtype());
+  }
   hid_t file_space = check_hdf5(H5Scopy(dset.space));
   cleanup cleanup_space([=] { H5Sclose(file_space); });
   check_hdf5(H5Sselect_hyperslab(file_space, H5S_SELECT_SET, start.data(),
                                  /*stride*/ nullptr, count.data(),
                                  /*block*/ nullptr));
 
+  if(debug) logger("read-elems: data=", data.num_elements() , " space=", H5Sget_select_npoints(file_space), " work-items=" , work_items, "start=", printer{start});
   if (work_items &&
       (data.num_elements() != static_cast<size_t>(H5Sget_select_npoints(file_space)))) {
     auto dims = data.dimensions();
@@ -96,8 +112,12 @@ void read(h5dset const& dset, std::vector<hsize_t> const& start, std::vector<hsi
   hid_t xfer = check_hdf5(H5Pcreate(H5P_DATASET_XFER));
   H5Pset_dxpl_mpio(xfer, H5FD_MPIO_COLLECTIVE);
   cleanup cleanup_xfer([=] { H5Pclose(xfer); });
+  if(debug) {
+  }
+  if (debug) logger("start-read " , printer{start});
   check_hdf5(H5Dread(dset.dset, pressio_to_hdf5_native_type(data.dtype()), mem_space, file_space,
                      xfer, data.data()));
+  if (debug) logger("start-read " , printer{start});
   std::vector<size_t> lp_dims(count.rbegin(), count.rend());
   data.set_dimensions(std::move(lp_dims));
 }
