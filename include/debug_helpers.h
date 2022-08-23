@@ -39,6 +39,10 @@ template <class ...Ts>
 void logger(Ts&&... ts) {
     std::stringstream ss;
     ss << "time=" << (MPI_Wtime() - inital_time) << ' ';
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    ss << rank << '/' << size << ' ';
     (ss << ... << std::forward<Ts>(ts));
     std::cerr << ss.rdbuf() << std::endl;
 }

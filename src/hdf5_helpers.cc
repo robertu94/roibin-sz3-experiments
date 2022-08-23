@@ -76,6 +76,7 @@ void write(h5dset const& dset, std::vector<hsize_t> const& start, std::vector<hs
   H5Pset_dxpl_mpio(xfer, H5FD_MPIO_COLLECTIVE);
   cleanup cleanup_xfer([=] { H5Pclose(xfer); });
   if (debug) logger("start-write " , printer{start});
+  
   check_hdf5(H5Dwrite(dset.dset, pressio_to_hdf5_native_type(data.dtype()), mem_space, file_space,
                      xfer, data.data()));
   if (debug) logger("end-write " , printer{start});
@@ -117,7 +118,5 @@ void read(h5dset const& dset, std::vector<hsize_t> const& start, std::vector<hsi
   if (debug) logger("start-read " , printer{start});
   check_hdf5(H5Dread(dset.dset, pressio_to_hdf5_native_type(data.dtype()), mem_space, file_space,
                      xfer, data.data()));
-  if (debug) logger("start-read " , printer{start});
-  std::vector<size_t> lp_dims(count.rbegin(), count.rend());
-  data.set_dimensions(std::move(lp_dims));
+  if (debug) logger("end-read " , printer{start});
 }

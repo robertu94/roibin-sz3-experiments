@@ -71,10 +71,10 @@ target_include_directories(roibin_helpers
   )
 target_link_libraries(roibin_helpers
   PUBLIC
+  hdf5::hdf5
   LibPressio::libpressio
   LibPressioOpt::libpressio_opt
   MPI::MPI_CXX
-  hdf5::hdf5
   )
 target_compile_features(roibin_helpers PUBLIC cxx_std_20)
 configure_file(

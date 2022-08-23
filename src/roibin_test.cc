@@ -228,6 +228,11 @@ int main(int argc, char* argv[]) {
       auto const config_basename = basename(args.pressio_config_file);
       if (work_rank == 0) {
         logger(comp->get_options());
+
+        logger("global data_dims", printer{data.get_dims_hsize()});
+        logger("global peakx_dims", printer{posx.get_dims_hsize()});
+        logger("global peaky_dims", printer{posy.get_dims_hsize()});
+        logger("global npeaks", printer{npeaks.get_dims_hsize()});
       }
 
       try {
@@ -305,13 +310,18 @@ int main(int argc, char* argv[]) {
           // read data
           std::vector<hsize_t> const data_start{id, 0, 0};
           std::vector<hsize_t> const data_count{read_work_items, data_lp_worksize.at(1), data_lp_worksize.at(0)};
-          std::vector<size_t>  const data_data_lp(data_count.begin(), data_count.end());
           if (read_work_items) {
-            data_data.set_dimensions(std::move(std::vector(data_data_lp)));
+            std::vector<size_t>  data_data_lp(data_count.rbegin(), data_count.rend());
+            data_data.set_dimensions(std::move(data_data_lp));
           }
-          logger("loading: ", id, " start=", printer(data_start), " count=", printer(data_count),  " items=", read_work_items);
-          read(data, data_start, data_count, data_data, read_work_items, args.debug);
-          logger("loaded: ", id, " start=", printer(data_start), " count=", printer(data_count),  " items=", read_work_items);
+          try {
+            logger("loading: ", id, " start=", printer(data_start), " count=", printer(data_count),  " items=", read_work_items);
+            read(data, data_start, data_count, data_data, read_work_items, args.debug);
+            logger("loaded: ", id, " start=", printer(data_start), " count=", printer(data_count),  " items=", read_work_items);
+          } catch (std::exception const& ex) {
+            logger("read failed", ex.what());
+            MPI_Abort(MPI_COMM_WORLD , 1);
+          }
 
           uint64_t compress_time_ms = 0;
           uint64_t decompress_time_ms = 0;
@@ -356,7 +366,6 @@ int main(int argc, char* argv[]) {
             std::vector<hsize_t> write_data_start{id, 0, 0};
             std::vector<hsize_t> write_data_count{write_work_items, data_lp_worksize.at(1),
                                                   data_lp_worksize.at(0)};
-            std::vector<size_t> write_data_data_lp(data_count.begin(), data_count.end());
             if(args.debug_buffers){
                 std::stringstream ss;
                 ss << args.debug_dir << cxi_basename << '-' << config_basename << '-' << id << '-'
@@ -373,7 +382,12 @@ int main(int argc, char* argv[]) {
             if(args.debug) {
                 logger("commiting: ", id, " start=", printer(write_data_start), " count=", printer(write_data_count),  " items=", write_work_items);
             }
-            write(output_data, write_data_start, write_data_count, data_output, write_work_items, args.debug);
+            try {
+              write(output_data, write_data_start, write_data_count, data_output, write_work_items, args.debug);
+            } catch(std::exception const& ex ) {
+              logger("write failed: ", ex.what());
+              MPI_Abort(MPI_COMM_WORLD, 1);
+            }
             if(args.debug) {
                 logger("commited: ", id);
             }
