@@ -384,6 +384,7 @@ int main(int argc, char* argv[]) {
             }
             try {
               write(output_data, write_data_start, write_data_count, data_output, write_work_items, args.debug);
+              H5Fflush(output_h5f, H5F_SCOPE_GLOBAL);
             } catch(std::exception const& ex ) {
               logger("write failed: ", ex.what());
               MPI_Abort(MPI_COMM_WORLD, 1);
