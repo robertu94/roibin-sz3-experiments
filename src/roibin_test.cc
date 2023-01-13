@@ -221,8 +221,6 @@ int main(int argc, char* argv[]) {
       pressio_compressor comp = library.get_compressor("pressio");
       comp->set_name("pressio");
       comp->set_options(options_from_file);
-      comp->set_options(
-          {{"pressio:metric", "composite"}, {"composite:plugins", std::vector<std::string>{"size", "time"}}});
 
       auto const cxi_basename = basename(args.cxi_filename);
       auto const config_basename = basename(args.pressio_config_file);
@@ -315,9 +313,9 @@ int main(int argc, char* argv[]) {
             data_data.set_dimensions(std::move(data_data_lp));
           }
           try {
-            logger("loading: ", id, " start=", printer(data_start), " count=", printer(data_count),  " items=", read_work_items);
+            //logger("loading: ", id, " start=", printer(data_start), " count=", printer(data_count),  " items=", read_work_items);
             read(data, data_start, data_count, data_data, read_work_items, args.debug);
-            logger("loaded: ", id, " start=", printer(data_start), " count=", printer(data_count),  " items=", read_work_items);
+            //logger("loaded: ", id, " start=", printer(data_start), " count=", printer(data_count),  " items=", read_work_items);
           } catch (std::exception const& ex) {
             logger("read failed", ex.what());
             MPI_Abort(MPI_COMM_WORLD , 1);
